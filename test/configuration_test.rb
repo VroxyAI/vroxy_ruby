@@ -35,4 +35,8 @@ class ConfigurationTest < Minitest::Test
     assert config.excluded?("/admin/dashboard")
     refute config.excluded?("/pricing")
   end
+
+  def test_default_admin_roles
+    assert_equal %w[admin owner], Ctovibe.configuration.admin_roles
+  end
 end

@@ -28,6 +28,12 @@ module Ctovibe
     # Renders the full snippet for a controller instance.  Returns
     # `""` when the gem is disabled or misconfigured — safe to
     # splat into a layout unconditionally.
+    #
+    # Output is 2–3 script tags:
+    #
+    #   1. Widget loader           (always, when enabled)
+    #   2. ctovibe.identify() call (when identity resolves to non-empty)
+    #   3. Admin inspector loader  (when identity role ∈ config.admin_roles)
     def render(controller)
       config = Ctovibe.configuration
       return "" unless config.enabled?
@@ -36,8 +42,9 @@ module Ctovibe
       identity = Identity.resolve(controller)
       loader   = loader_tag(config)
       ident    = identify_tag(identity, config, controller)
+      admin    = admin_inspector_tag(identity, config, controller)
 
-      "#{loader}#{ident}"
+      "#{loader}#{ident}#{admin}"
     end
 
     def loader_tag(config)
@@ -86,6 +93,69 @@ module Ctovibe
       meta     = extra.merge(meta) # explicit :meta wins over sugar keys
       top[:meta] = meta unless meta.empty?
       top
+    end
+
+    # Emitted only when the identified user's `role` is in
+    # `config.admin_roles`.  Dynamic-imports the inspector bundle
+    # from `endpoint/admin_ui_inspector.js` (a stable public URL
+    # served by ctovibe.ai) and calls
+    # `window.CtovibeInspector.init(...)` with server-known
+    # context so the picker has partial + controller/action data
+    # without any DOM meta-tag scraping.
+    #
+    # Uses a `<script type="module">` because the esbuild output
+    # on ctovibe.ai is ESM; classic script tags can't load it.
+    # `import()` returns a Promise so we chain `.then()` to fire
+    # init once the module has finished evaluating (which is when
+    # `CtovibeInspector` is guaranteed to be on `window`).
+    def admin_inspector_tag(identity, config, controller)
+      return "" if identity.nil?
+      role = identity[:role] || identity.dig(:meta, :role) || identity.dig(:meta, "role")
+      return "" if role.nil?
+      return "" unless config.admin_roles.map(&:to_s).include?(role.to_s)
+
+      init_args  = JSON.generate(inspector_init_args(config, controller))
+      script_url = "#{config.endpoint.chomp('/')}/admin_ui_inspector.js"
+      nonce_attr = build_nonce_attr(config, controller)
+
+      body = <<~JS
+        import(#{script_url.to_json})
+          .then(function () {
+            if (window.CtovibeInspector && window.CtovibeInspector.init) {
+              window.CtovibeInspector.init(#{init_args});
+            }
+          })
+          .catch(function (e) { try { console.warn("[ctovibe] inspector load failed:", e); } catch (_) {} });
+      JS
+
+      %(<script type="module"#{nonce_attr}>#{body.strip}</script>)
+    end
+
+    # Args passed to `CtovibeInspector.init()`.  Only server-known
+    # values — visitor_token is read client-side from the widget's
+    # localStorage.  Partial trail comes from AdminRenderTracker's
+    # `@_ctovibe_rendered_partials` stash on the controller.
+    def inspector_init_args(config, controller)
+      partials =
+        if controller && controller.instance_variable_defined?(:@_ctovibe_rendered_partials)
+          controller.instance_variable_get(:@_ctovibe_rendered_partials) || []
+        else
+          []
+        end
+
+      controller_action =
+        if controller && controller.respond_to?(:controller_path) && controller.respond_to?(:action_name)
+          "#{controller.controller_path}##{controller.action_name}"
+        else
+          ""
+        end
+
+      {
+        tenant:            config.api_key,
+        endpoint:          config.endpoint,
+        controller_action: controller_action,
+        rendered_partials: partials
+      }
     end
 
     def build_nonce_attr(config, controller)

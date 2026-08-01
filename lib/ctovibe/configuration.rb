@@ -48,6 +48,15 @@ module Ctovibe
     # against `request.path`.
     attr_accessor :exclude_paths
 
+    # Role values that trigger the admin inspector.  When the
+    # identity resolver returns a `role:` in this list, the
+    # snippet emits a third `<script>` that dynamic-imports the
+    # inspector bundle from `endpoint/admin_ui_inspector.js` and
+    # boots it with the current request's controller/action +
+    # tracked partial trail.  Non-admin identities never load the
+    # inspector.
+    attr_accessor :admin_roles
+
     def initialize
       @api_key       = ENV["CTOVIBE_API_KEY"]
       @endpoint      = ENV.fetch("CTOVIBE_ENDPOINT", "https://ctovibe.ai")
@@ -55,6 +64,7 @@ module Ctovibe
       @identify      = nil
       @csp_nonce     = nil
       @exclude_paths = []
+      @admin_roles   = %w[admin owner]
       @enabled       = nil # tri-state: nil → derive from api_key
     end
 

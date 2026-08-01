@@ -84,4 +84,68 @@ class SnippetTest < Minitest::Test
     html = Ctovibe::Snippet.render(FakeController.new)
     assert_includes html, "\"meta\":{\"role\":\"override\"}"
   end
+
+  # A controller-like double that exposes controller_path /
+  # action_name so the inspector init args include a proper
+  # `controller_action` string.  Also lets us stash an
+  # `@_ctovibe_rendered_partials` ivar for the tracker-integration
+  # assertion.
+  class InspectorController
+    attr_accessor :_ctovibe_rendered_partials
+
+    def initialize(user, rendered = nil)
+      @user = user
+      instance_variable_set(:@_ctovibe_rendered_partials, rendered) if rendered
+    end
+
+    def current_user; @user; end
+    def controller_path; "posts"; end
+    def action_name;     "index"; end
+  end
+
+  def test_admin_inspector_tag_emitted_for_admin_role
+    Ctovibe.configure { |c| c.api_key = "pk_1" }
+    user = Struct.new(:id, :email, :full_name, :role)
+      .new(7, "u@ex.com", "User Seven", "admin")
+
+    html = Ctovibe::Snippet.render(InspectorController.new(user))
+    assert_includes html, "https://ctovibe.ai/admin_ui_inspector.js"
+    assert_includes html, "CtovibeInspector.init("
+    assert_includes html, "\"controller_action\":\"posts#index\""
+  end
+
+  def test_admin_inspector_tag_absent_for_non_admin_role
+    Ctovibe.configure { |c| c.api_key = "pk_1" }
+    user = Struct.new(:id, :email, :full_name, :role)
+      .new(7, "u@ex.com", "User Seven", "basic")
+
+    html = Ctovibe::Snippet.render(InspectorController.new(user))
+    refute_includes html, "admin_ui_inspector.js"
+    refute_includes html, "CtovibeInspector"
+  end
+
+  def test_admin_inspector_tag_absent_when_anonymous
+    Ctovibe.configure { |c| c.api_key = "pk_1" }
+    html = Ctovibe::Snippet.render(InspectorController.new(nil))
+    refute_includes html, "admin_ui_inspector.js"
+  end
+
+  def test_admin_roles_are_configurable
+    Ctovibe.configure do |c|
+      c.api_key     = "pk_1"
+      c.admin_roles = %w[manager]
+    end
+    user = Struct.new(:id, :email, :role).new(1, "x@y.co", "manager")
+    html = Ctovibe::Snippet.render(InspectorController.new(user))
+    assert_includes html, "admin_ui_inspector.js"
+  end
+
+  def test_rendered_partials_forwarded_to_init_args
+    Ctovibe.configure { |c| c.api_key = "pk_1" }
+    user = Struct.new(:id, :email, :role).new(1, "x@y.co", "admin")
+    partials = [{ path: "app/views/posts/_row.html.erb", ms: 1.2 }]
+    html = Ctovibe::Snippet.render(InspectorController.new(user, partials))
+
+    assert_includes html, "\"rendered_partials\":[{\"path\":\"app/views/posts/_row.html.erb\",\"ms\":1.2}]"
+  end
 end

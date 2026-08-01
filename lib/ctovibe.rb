@@ -3,6 +3,7 @@
 require "ctovibe/version"
 require "ctovibe/configuration"
 require "ctovibe/identity"
+require "ctovibe/admin_render_tracker"
 require "ctovibe/snippet"
 require "ctovibe/helper"
 require "ctovibe/middleware"

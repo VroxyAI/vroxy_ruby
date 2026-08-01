@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.0
+
+- **Admin inspector loader.** When the identify block returns a
+  `role` in `config.admin_roles` (default `%w[admin owner]`), the
+  snippet emits a third `<script type="module">` that dynamic-
+  imports `endpoint/admin_ui_inspector.js` from ctovibe.ai and
+  calls `CtovibeInspector.init({tenant, endpoint,
+  controller_action, rendered_partials})`. Turns any Rails app
+  running the gem into a surface where admins can pick an
+  element, add a note, and send it to Claude via ctovibe_dispatch
+  — without the host app writing a single line of JS or having
+  ctovibe.ai-specific views.
+- **`Ctovibe::AdminRenderTracker` concern.** Auto-installed on
+  `ActionController::Base` via the Railtie. Captures every
+  `render_partial.action_view` notification for admin-role
+  requests only (non-admin requests pay zero cost). Trail is
+  stashed on the controller as `@_ctovibe_rendered_partials` and
+  passed to the inspector via the loader's `init()` args.
+- **New config: `admin_roles`.** Role allowlist that triggers the
+  inspector loader and the render tracker.
+- Updated install-generator initializer template with an
+  `admin_roles` example.
+
 ## 0.1.0
 
 - Initial release.

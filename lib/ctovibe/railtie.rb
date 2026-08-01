@@ -10,6 +10,14 @@ module Ctovibe
     initializer "ctovibe.helpers" do
       ActiveSupport.on_load(:action_controller_base) do
         helper Ctovibe::Helper
+        # Auto-install the render tracker on every ApplicationController
+        # descendant.  The `around_action` short-circuits on non-admin
+        # identities, so non-admin request paths remain zero-cost.  If
+        # a host app wants to keep the tracker out of a particular
+        # controller subtree (e.g. an API mount), `skip_around_action
+        # :ctovibe_track_rendered_partials` works — the method is named
+        # deterministically for exactly this.
+        include Ctovibe::AdminRenderTracker
       end
     end
 

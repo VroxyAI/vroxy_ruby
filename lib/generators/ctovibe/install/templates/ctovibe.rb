@@ -52,4 +52,16 @@ Ctovibe.configure do |config|
   # inline scripts, wire up the request nonce so the identify
   # <script> can carry it.
   # config.csp_nonce = ->(controller) { controller.content_security_policy_nonce }
+
+  # Roles that trigger the admin UI-feedback inspector — a
+  # floating 💡 launcher (bottom-left) that lets an admin pick a
+  # DOM element, screenshot the page, add a note, and file it
+  # against ctovibe.  The message flows to ctovibe.ai and gets
+  # dispatched to Claude via ctovibe_dispatch; the assistant
+  # reply lands in the widget's chat panel on the same visitor.
+  #
+  # Inspector bundle is loaded cross-origin from
+  # `endpoint/admin_ui_inspector.js`; the customer app doesn't
+  # ship a byte of picker code.
+  # config.admin_roles = %w[admin owner]
 end
