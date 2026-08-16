@@ -57,6 +57,21 @@ module Ctovibe
     # inspector.
     attr_accessor :admin_roles
 
+    # Tenant-owned ctovibe API token (tenant:write) for
+    # server-to-server calls — the glossary sync rake task.  NOT
+    # the public api_key.  Reads ENV CTOVIBE_SECRET_TOKEN.
+    attr_accessor :secret_token
+
+    # Optional: build an admin deep-link template for a glossary
+    # term.  `->(model_key) { "https://myapp.com/admin/#{model_key}s/{id}" }`
+    # — return nil to skip.  Literal "{id}" stays in the template;
+    # ctovibe fills it per record.
+    attr_accessor :glossary_admin_url
+
+    # Optional: extra glossary entries appended verbatim to the
+    # i18n-derived ones — `[{ "term" => ..., "aliases" => [...] }]`.
+    attr_accessor :glossary_extra
+
     def initialize
       @api_key       = ENV["CTOVIBE_API_KEY"]
       @endpoint      = ENV.fetch("CTOVIBE_ENDPOINT", "https://ctovibe.ai")
@@ -65,6 +80,9 @@ module Ctovibe
       @csp_nonce     = nil
       @exclude_paths = []
       @admin_roles   = %w[admin owner]
+      @secret_token  = ENV["CTOVIBE_SECRET_TOKEN"]
+      @glossary_admin_url = nil
+      @glossary_extra     = []
       @enabled       = nil # tri-state: nil → derive from api_key
     end
 

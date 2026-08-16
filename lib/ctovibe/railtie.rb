@@ -25,10 +25,24 @@ module Ctovibe
     # including anything downstream middlewares (compression,
     # ETagging) would otherwise clobber.  Rack::ETag sits near the
     # top of the stack; putting us AFTER it means our body edits
-    # invalidate the ETag it already computed — so we insert
-    # BEFORE Rack::ETag to keep response headers coherent.
+    # invalidate the ETag it already computed.
+    #
+    # CORRECTION: the injector must sit INSIDE Rack::ETag
+    # (insert_after = closer to the app) so the digest covers the
+    # body WITH the snippet — insert_before left two users' pages
+    # (different identify() payloads) sharing one ETag, and a
+    # conditional GET could serve user A's cached identify block
+    # to user B.  Host apps without Rack::ETag get a plain append.
+    rake_tasks do
+      load File.expand_path("../tasks/ctovibe.rake", __dir__)
+    end
+
     initializer "ctovibe.middleware" do |app|
-      app.middleware.insert_before Rack::ETag, Ctovibe::Middleware
+      begin
+        app.middleware.insert_after Rack::ETag, Ctovibe::Middleware
+      rescue StandardError
+        app.middleware.use Ctovibe::Middleware
+      end
     end
   end
 end

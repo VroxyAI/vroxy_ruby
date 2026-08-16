@@ -43,7 +43,11 @@ module Ctovibe
       new_html = html.sub(BODY_CLOSE_RE) { |m| "#{snippet}#{m}" }
       new_body = [new_html]
       new_headers = headers.dup
-      new_headers["Content-Length"] = new_html.bytesize.to_s if new_headers.key?("Content-Length") || new_headers.key?("content-length")
+      # Same-case update — a plain-Hash response (mounted Rack app)
+      # with Rack-3 lowercase "content-length" must not grow a
+      # SECOND capitalized header with a stale byte count.
+      cl_key = [ "content-length", "Content-Length" ].find { |k| new_headers.key?(k) }
+      new_headers[cl_key] = new_html.bytesize.to_s if cl_key
 
       close_body(body)
       [status, new_headers, new_body]
