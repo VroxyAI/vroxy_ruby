@@ -8,6 +8,7 @@ require "ctovibe/snippet"
 require "ctovibe/helper"
 require "ctovibe/middleware"
 require "ctovibe/glossary"
+require "ctovibe/error_reporter"
 
 # Railtie is optional — loading it only when Rails is present
 # lets `require "ctovibe"` succeed in a plain Rack / Sinatra app

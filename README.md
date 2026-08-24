@@ -106,6 +106,29 @@ notion of widget-admin isn't a single role string.
 The secret stays server-side — only the derived signature reaches the page,
 and it grants exactly that one identity's claims.
 
+## Exception reporting
+
+The gem ships errors from your app to your ctovibe workspace's **Errors**
+page — no exception_notification or extra service needed. In production,
+with `api_key` set, it's on automatically: the gem subscribes to Rails'
+error reporter (`Rails.error`), so every unhandled request or job
+exception is delivered (background thread, 3s timeouts, 60/min throttle —
+reporting can never slow or break your app).
+
+```ruby
+Ctovibe.configure do |config|
+  config.report_errors = true                       # force on/off; nil = auto (production)
+  config.error_ignore += %w[Some::ExpectedError]    # skip known non-bugs
+end
+
+# report a handled exception with context
+rescue Stripe::CardError => e
+  Ctovibe.report_error(e, context: { order_id: order.id })
+```
+
+The widget reports its own JS errors from customer pages automatically,
+and host pages can call `ctovibe("reportError", err, { where: "checkout" })`.
+
 ## Configuration reference
 
 | Key             | Default                       | Purpose                                                                 |
@@ -118,6 +141,8 @@ and it grants exactly that one identity's claims.
 | `exclude_paths` | `[]`                          | Strings or Regexps matched against `request.path`; skipped by middleware. |
 | `csp_nonce`     | `nil`                         | `->(controller) { controller.content_security_policy_nonce }` for strict CSP. |
 | `identity_secret` | `ENV["CTOVIBE_IDENTITY_SECRET"]` | Workspace identity-verification secret; signs the identify payload's access level so gated bot tools unlock. |
+| `report_errors` | `nil` (auto: production + api_key) | Ship unhandled exceptions to the workspace Errors page. |
+| `error_ignore`  | RecordNotFound, RoutingError, … | Exception class names (incl. subclasses) never reported. |
 
 ## Manual placement (auto-inject off)
 

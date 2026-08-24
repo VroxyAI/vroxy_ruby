@@ -44,5 +44,15 @@ module Ctovibe
         app.middleware.use Ctovibe::Middleware
       end
     end
+
+    # Subscribe AFTER the host's initializers ran (that's where
+    # api_key / report_errors get set).  `Rails.error.subscribe`
+    # hands the subscriber every unhandled request/job exception —
+    # no rescue middleware, no exception_notification dependency.
+    config.after_initialize do
+      if defined?(Rails.error) && Ctovibe.configuration.report_errors?
+        Rails.error.subscribe(Ctovibe::ErrorSubscriber.new)
+      end
+    end
   end
 end

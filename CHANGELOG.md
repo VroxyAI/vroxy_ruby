@@ -1,3 +1,9 @@
+## 0.5.0 — 2026-08-24
+
+- **Built-in exception reporting** — no exception_notification dependency. `Rails.error.subscribe` (Rails 7+) hands the gem every unhandled request/job exception plus anything the app reports via `Rails.error.report`; each becomes a POST to ctovibe's `/ingest/errors` (public-key authed) and lands on the workspace's Errors page. Manual API: `Ctovibe.report_error(exception, context: {...})`.
+- New config: `report_errors` (tri-state — nil auto-enables in production when `api_key` is set; true/false force, but no key or blank endpoint always disables) and `error_ignore` (class-name list matched against ancestors; defaults cover RecordNotFound / RoutingError / CSRF and similar non-bugs).
+- Delivery can never hurt the host app: background thread, 3s timeouts, in-process 60/min throttle, every failure swallowed. `ErrorReporter.transport` is injectable for tests.
+
 ## 0.4.0 — 2026-08-23
 
 - **Signed identity levels (access-gated bot tools).** New config `identity_secret` (ENV `CTOVIBE_IDENTITY_SECRET`, from the workspace Embed page). When set, the identify payload carries `level` ("admin" when the resolved role is in `admin_roles`, else "user"; an identify block may return an explicit `level:`) plus an HMAC-SHA256 `signature` over `external_id|email|level`. ctovibe verifies the signature and only a VERIFIED level unlocks `user`/`admin` bot tools — an unsigned claim would be forgeable from the console, so without the secret the snippet emits neither field.

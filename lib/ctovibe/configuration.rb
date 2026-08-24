@@ -62,6 +62,22 @@ module Ctovibe
     # the public api_key.  Reads ENV CTOVIBE_SECRET_TOKEN.
     attr_accessor :secret_token
 
+    # Exception reporting to ctovibe (/ingest/errors, authenticated
+    # by the public api_key).  Tri-state: nil (default) auto-enables
+    # in production when an api_key is present; true/false force.
+    attr_writer :report_errors
+
+    # Exception class names never reported.  Matched against the
+    # class AND its ancestors, so subclasses of an ignored class
+    # stay ignored.
+    attr_accessor :error_ignore
+
+    def report_errors?
+      return false if api_key.to_s.strip.empty?
+      return @report_errors unless @report_errors.nil?
+      defined?(Rails) && Rails.respond_to?(:env) && Rails.env.production?
+    end
+
     # Identity-verification secret from the ctovibe workspace's
     # Embed page.  When set, the snippet signs the identify
     # payload's access claims (external_id / email / level) with
@@ -95,6 +111,17 @@ module Ctovibe
       @admin_roles   = %w[admin owner]
       @secret_token  = ENV["CTOVIBE_SECRET_TOKEN"]
       @identity_secret = ENV["CTOVIBE_IDENTITY_SECRET"]
+      @report_errors = nil
+      @error_ignore  = %w[
+        ActiveRecord::RecordNotFound
+        ActionController::RoutingError
+        ActionController::UnknownFormat
+        ActionController::InvalidAuthenticityToken
+        ActionController::BadRequest
+        ActionDispatch::Http::MimeNegotiation::InvalidType
+        AbstractController::ActionNotFound
+        Rack::QueryParser::ParameterTypeError
+      ]
       @glossary_admin_url = nil
       @glossary_extra     = []
       @enabled       = nil # tri-state: nil → derive from api_key
