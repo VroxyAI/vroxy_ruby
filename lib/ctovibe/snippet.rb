@@ -63,7 +63,7 @@ module Ctovibe
       return "" if identity.nil? || identity.empty?
 
       nonce_attr = build_nonce_attr(config, controller)
-      payload    = JSON.generate(identity_payload(identity))
+      payload    = JSON.generate(identity_payload(identity, config))
 
       # `window.ctovibe = window.ctovibe || function(){ (window.ctovibe.q = window.ctovibe.q || []).push(arguments) }`
       # mirrors the shim in Widget::BootController#bootstrap_source_for.
@@ -81,17 +81,38 @@ module Ctovibe
     end
 
     # Split identity into the top-level fields the widget's
-    # identify endpoint understands (email/name/external_id) and
-    # push everything else — role, plan, tenant_id, whatever —
-    # into `meta`, which is the ctovibe endpoint's escape hatch
-    # for arbitrary customer keys.
-    def identity_payload(identity)
+    # identify endpoint understands (email/name/external_id/role)
+    # and push everything else — plan, tenant_id, whatever — into
+    # `meta`, which is the ctovibe endpoint's escape hatch for
+    # arbitrary customer keys.  `role` ALSO stays in meta so
+    # ctovibe deployments predating the top-level field keep
+    # seeing it where they always did.
+    #
+    # When `config.identity_secret` is set, the payload carries a
+    # signed access `level` ("user"/"admin", see
+    # Identity.level_for) — that's what unlocks access-gated bot
+    # tools for this visitor.  No secret → no level/signature: an
+    # unsigned claim would be spoofable from the console, so the
+    # snippet doesn't emit one.
+    def identity_payload(identity, config)
       top_keys = %i[email name external_id]
       top      = identity.slice(*top_keys)
-      extra    = identity.except(*top_keys, :meta)
+      extra    = identity.except(*top_keys, :meta, :level)
       meta     = identity[:meta].is_a?(Hash) ? identity[:meta].dup : {}
       meta     = extra.merge(meta) # explicit :meta wins over sugar keys
       top[:meta] = meta unless meta.empty?
+      top[:role] = identity[:role].to_s unless identity[:role].to_s.empty?
+
+      secret = config.identity_secret.to_s
+      unless secret.empty?
+        level            = Identity.level_for(identity, config)
+        top[:level]      = level
+        top[:signature]  = Identity.signature_for(
+          external_id: identity[:external_id], email: identity[:email],
+          level: level, secret: secret
+        )
+      end
+
       top
     end
 

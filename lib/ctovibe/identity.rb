@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "openssl"
+
 module Ctovibe
   # Resolves the {email, name, external_id, role, meta} hash the
   # snippet forwards to `ctovibe.identify(...)`.
@@ -99,6 +101,30 @@ module Ctovibe
       user.public_send(method) if user.respond_to?(method)
     rescue StandardError
       nil
+    end
+
+    # Tool-access level for this identity: "admin" when the role is
+    # in `config.admin_roles`, else "user" (any signed-in user).
+    # An identify block can override by returning an explicit
+    # `level:` — useful when the host app's notion of widget-admin
+    # doesn't line up with a single role string.
+    def level_for(identity, config)
+      explicit = identity[:level].to_s
+      return explicit unless explicit.empty?
+
+      role = identity[:role]
+      return "admin" if role && config.admin_roles.map(&:to_s).include?(role.to_s)
+      "user"
+    end
+
+    # HMAC-SHA256 over the access claims, hex-encoded.  The
+    # canonical string is `external_id|email|level` with nils as
+    # empty strings — ctovibe's identify endpoint recomputes the
+    # same string from the received params, so both sides must
+    # never reorder or re-encode these fields.
+    def signature_for(external_id:, email:, level:, secret:)
+      canonical = [ external_id.to_s, email.to_s, level.to_s ].join("|")
+      OpenSSL::HMAC.hexdigest("SHA256", secret.to_s, canonical)
     end
   end
 end

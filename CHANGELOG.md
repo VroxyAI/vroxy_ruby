@@ -1,3 +1,9 @@
+## 0.4.0 — 2026-08-23
+
+- **Signed identity levels (access-gated bot tools).** New config `identity_secret` (ENV `CTOVIBE_IDENTITY_SECRET`, from the workspace Embed page). When set, the identify payload carries `level` ("admin" when the resolved role is in `admin_roles`, else "user"; an identify block may return an explicit `level:`) plus an HMAC-SHA256 `signature` over `external_id|email|level`. ctovibe verifies the signature and only a VERIFIED level unlocks `user`/`admin` bot tools — an unsigned claim would be forgeable from the console, so without the secret the snippet emits neither field.
+- `role` is now also a top-level identify field (still mirrored into `meta` for older ctovibe deployments).
+- FIX (tests): `AdminRenderTrackerTest`'s teardown removed the real `Identity.resolve` (the stub replaces `module_function`'s singleton copy, so `remove_method` deleted it for every later test file — order-dependent). Teardown now restores the saved original.
+
 ## 0.3.0 — 2026-08-15
 
 - `bin/rails ctovibe:sync_glossary` — mines `activerecord.models` i18n labels (where per-env/whitelabel nounage lives) into ctovibe glossary entries and PUTs them to `/api/v1/glossary`.

@@ -82,6 +82,30 @@ end
 
 Return `nil` to explicitly stay anonymous for a request (e.g. impersonation sessions where you don't want the impersonator's identity leaking to the widget).
 
+## Identity verification (access-gated bot tools)
+
+ctovibe bot tools have an access level: `public` (anyone), `user` (signed-in
+visitors), or `admin`. To unlock the non-public tiers the widget has to prove
+the visitor's level — an unsigned claim could be forged from the browser
+console. Set the identity-verification secret from your ctovibe workspace's
+**Embed** page:
+
+```ruby
+Ctovibe.configure do |config|
+  config.identity_secret = ENV["CTOVIBE_IDENTITY_SECRET"]
+end
+```
+
+With the secret set, the snippet adds a `level` ("admin" when the resolved
+`role` is in `config.admin_roles`, else "user") plus an HMAC-SHA256
+`signature` over `external_id|email|level` to the identify payload. ctovibe
+recomputes the signature server-side; only a verified level unlocks gated
+tools. An identify block can also return an explicit `level:` when your
+notion of widget-admin isn't a single role string.
+
+The secret stays server-side — only the derived signature reaches the page,
+and it grants exactly that one identity's claims.
+
 ## Configuration reference
 
 | Key             | Default                       | Purpose                                                                 |
@@ -93,6 +117,7 @@ Return `nil` to explicitly stay anonymous for a request (e.g. impersonation sess
 | `identify`      | *(auto-detect)*               | `->(controller) { {...} }`. Return `nil` to stay anonymous.             |
 | `exclude_paths` | `[]`                          | Strings or Regexps matched against `request.path`; skipped by middleware. |
 | `csp_nonce`     | `nil`                         | `->(controller) { controller.content_security_policy_nonce }` for strict CSP. |
+| `identity_secret` | `ENV["CTOVIBE_IDENTITY_SECRET"]` | Workspace identity-verification secret; signs the identify payload's access level so gated bot tools unlock. |
 
 ## Manual placement (auto-inject off)
 

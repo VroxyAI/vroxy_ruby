@@ -25,8 +25,15 @@ class AdminRenderTrackerTest < Minitest::Test
     include Ctovibe::AdminRenderTracker
   end
 
+  # `define_singleton_method(:resolve)` REPLACES the singleton
+  # copy `module_function` created — so a bare `remove_method` in
+  # teardown deleted the real method for every test file that ran
+  # after this one (order-dependent, surfaced by seed shuffle).
+  # Save the original once and restore it instead.
+  ORIGINAL_RESOLVE = Ctovibe::Identity.method(:resolve)
+
   def teardown
-    Ctovibe::Identity.singleton_class.send(:remove_method, :resolve) rescue nil
+    Ctovibe::Identity.define_singleton_method(:resolve, ORIGINAL_RESOLVE)
     super
   end
 

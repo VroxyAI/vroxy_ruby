@@ -48,6 +48,13 @@ Ctovibe.configure do |config|
   #   }
   # }
 
+  # Identity-verification secret from your ctovibe workspace's
+  # Embed page.  Lets the snippet SIGN the visitor's access level
+  # ("user" / "admin") so access-gated bot tools unlock for them —
+  # without it, identify still personalizes the chat but the
+  # visitor stays at public tool access.  Keep it server-side.
+  # config.identity_secret = ENV["CTOVIBE_IDENTITY_SECRET"]
+
   # If the app runs a strict Content-Security-Policy that forbids
   # inline scripts, wire up the request nonce so the identify
   # <script> can carry it.

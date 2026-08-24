@@ -62,6 +62,19 @@ module Ctovibe
     # the public api_key.  Reads ENV CTOVIBE_SECRET_TOKEN.
     attr_accessor :secret_token
 
+    # Identity-verification secret from the ctovibe workspace's
+    # Embed page.  When set, the snippet signs the identify
+    # payload's access claims (external_id / email / level) with
+    # HMAC-SHA256 — that's what lets ctovibe TRUST "this visitor
+    # is a signed-in user / an admin" and unlock access-gated bot
+    # tools for them.  Without it, identify still personalizes
+    # the conversation but the visitor stays at public tool
+    # access (an unsigned claim would let any visitor self-claim
+    # admin from the console).  Server-side only — never ship it
+    # to the browser yourself; the snippet only emits the derived
+    # signature.  Reads ENV CTOVIBE_IDENTITY_SECRET.
+    attr_accessor :identity_secret
+
     # Optional: build an admin deep-link template for a glossary
     # term.  `->(model_key) { "https://myapp.com/admin/#{model_key}s/{id}" }`
     # — return nil to skip.  Literal "{id}" stays in the template;
@@ -81,6 +94,7 @@ module Ctovibe
       @exclude_paths = []
       @admin_roles   = %w[admin owner]
       @secret_token  = ENV["CTOVIBE_SECRET_TOKEN"]
+      @identity_secret = ENV["CTOVIBE_IDENTITY_SECRET"]
       @glossary_admin_url = nil
       @glossary_extra     = []
       @enabled       = nil # tri-state: nil → derive from api_key
