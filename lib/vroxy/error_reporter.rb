@@ -5,8 +5,8 @@ require "net/http"
 require "uri"
 require "time"
 
-module Ctovibe
-  # Ships exceptions from the host app to ctovibe's /ingest/errors
+module Vroxy
+  # Ships exceptions from the host app to vroxy's /ingest/errors
   # endpoint (public-key authenticated).  Reporting must never hurt
   # the host: delivery is async with short timeouts, every path
   # swallows its own failures, and an in-process throttle caps the
@@ -30,7 +30,7 @@ module Ctovibe
     end
 
     def report(exception, context: {}, source: "ruby", handled: true)
-      config = Ctovibe.configuration
+      config = Vroxy.configuration
       return false unless config.report_errors?
       return false if config.endpoint.to_s.strip.empty?
       return false unless exception.respond_to?(:message)
@@ -104,12 +104,12 @@ module Ctovibe
 
         request = Net::HTTP::Post.new(uri)
         request["Content-Type"] = "application/json"
-        request["X-Ctovibe-Tenant"] = config.api_key.to_s
+        request["X-Vroxy-Tenant"] = config.api_key.to_s
         request.body = JSON.generate(payload)
 
         http.request(request)
       rescue StandardError => e
-        warn "[ctovibe] error report failed: #{e.class}: #{e.message}"
+        warn "[vroxy] error report failed: #{e.class}: #{e.message}"
       end
     end
   end
@@ -120,11 +120,11 @@ module Ctovibe
   # needed.
   class ErrorSubscriber
     def report(error, handled:, severity:, context: {}, source: nil)
-      return if source.to_s.start_with?("ctovibe")
+      return if source.to_s.start_with?("vroxy")
       ctx = context.is_a?(Hash) ? context.dup : {}
       ctx[:rails_source] = source if source
       ctx[:severity] = severity if severity
-      Ctovibe::ErrorReporter.report(error, context: ctx, handled: handled)
+      Vroxy::ErrorReporter.report(error, context: ctx, handled: handled)
     rescue StandardError
       nil
     end

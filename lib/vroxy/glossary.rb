@@ -4,9 +4,9 @@ require "json"
 require "net/http"
 require "uri"
 
-module Ctovibe
+module Vroxy
   # Builds the tenant's model glossary from the HOST APP's i18n and
-  # pushes it to ctovibe, so the support bot learns the app's
+  # pushes it to vroxy, so the support bot learns the app's
   # vocabulary ("property"/"listing" → what the admin calls a
   # "product") without anyone hand-typing mappings.
   #
@@ -16,8 +16,8 @@ module Ctovibe
   # lives.  A model whose display label differs from its key becomes
   # an entry: `{ term: "product", aliases: ["Listing"] }`.
   #
-  # Run via `bin/rails ctovibe:sync_glossary`.  Needs
-  # `config.secret_token` (a tenant-owned ctovibe API token with
+  # Run via `bin/rails vroxy:sync_glossary`.  Needs
+  # `config.secret_token` (a tenant-owned vroxy API token with
   # tenant:write — NOT the public api_key) because glossary writes go
   # through the server-to-server API.
   module Glossary
@@ -41,23 +41,23 @@ module Ctovibe
         next nil if aliases.empty?
 
         entry = { "term" => term, "aliases" => aliases.uniq }
-        if (builder = Ctovibe.configuration.glossary_admin_url)
+        if (builder = Vroxy.configuration.glossary_admin_url)
           url = builder.call(term) rescue nil
           entry["admin_url_template"] = url if url
         end
         entry
       end
 
-      entries + Array(Ctovibe.configuration.glossary_extra)
+      entries + Array(Vroxy.configuration.glossary_extra)
     end
 
-    # PUT the entries to ctovibe.  Returns the parsed response hash.
+    # PUT the entries to vroxy.  Returns the parsed response hash.
     def sync!(entries = entries_from_i18n)
-      secret = Ctovibe.configuration.secret_token
-      raise "Ctovibe.configuration.secret_token (or ENV CTOVIBE_SECRET_TOKEN) is required — a tenant API token with tenant:write" if secret.to_s.strip.empty?
+      secret = Vroxy.configuration.secret_token
+      raise "Vroxy.configuration.secret_token (or ENV VROXY_SECRET_TOKEN) is required — a tenant API token with tenant:write" if secret.to_s.strip.empty?
 
-      endpoint = Ctovibe.configuration.endpoint.to_s
-      endpoint = "https://ctovibe.ai" if endpoint.strip.empty?
+      endpoint = Vroxy.configuration.endpoint.to_s
+      endpoint = "https://vroxy.ai" if endpoint.strip.empty?
       uri = URI.parse("#{endpoint.chomp('/')}/api/v1/glossary")
 
       req = Net::HTTP::Put.new(uri)
@@ -67,7 +67,7 @@ module Ctovibe
 
       res = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https",
                             open_timeout: 10, read_timeout: 10) { |http| http.request(req) }
-      raise "ctovibe glossary sync failed: HTTP #{res.code} #{res.body.to_s[0, 300]}" unless res.code.to_i.between?(200, 299)
+      raise "vroxy glossary sync failed: HTTP #{res.code} #{res.body.to_s[0, 300]}" unless res.code.to_i.between?(200, 299)
       JSON.parse(res.body)
     end
   end

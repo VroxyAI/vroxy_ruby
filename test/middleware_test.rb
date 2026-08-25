@@ -12,7 +12,7 @@ class MiddlewareTest < Minitest::Test
       env.merge!(env_extras)
       [status, headers, [body]]
     }
-    Ctovibe::Middleware.new(inner)
+    Vroxy::Middleware.new(inner)
   end
 
   def app
@@ -20,7 +20,7 @@ class MiddlewareTest < Minitest::Test
   end
 
   def with_config
-    Ctovibe.configure { |c| c.api_key = "pk_test" }
+    Vroxy.configure { |c| c.api_key = "pk_test" }
     yield
   end
 
@@ -48,7 +48,7 @@ class MiddlewareTest < Minitest::Test
   end
 
   def test_skips_when_auto_inject_off
-    Ctovibe.configure do |c|
+    Vroxy.configure do |c|
       c.api_key     = "pk_test"
       c.auto_inject = false
     end
@@ -58,7 +58,7 @@ class MiddlewareTest < Minitest::Test
   end
 
   def test_skips_excluded_paths
-    Ctovibe.configure do |c|
+    Vroxy.configure do |c|
       c.api_key       = "pk_test"
       c.exclude_paths = [%r{\A/admin}]
     end
@@ -69,7 +69,7 @@ class MiddlewareTest < Minitest::Test
 
   def test_skips_when_helper_already_rendered
     with_config do
-      @app = build_app(env_extras: { Ctovibe::Helper::RENDERED_ENV_KEY => true })
+      @app = build_app(env_extras: { Vroxy::Helper::RENDERED_ENV_KEY => true })
       get "/"
       refute_includes last_response.body, "widget.js"
     end

@@ -7,10 +7,10 @@
 require "active_support/concern"
 require "active_support/notifications"
 
-module Ctovibe
+module Vroxy
   # Per-request capture of every `render_partial.action_view`
-  # notification a controller emits, so the ctovibe admin
-  # inspector (loaded cross-origin from ctovibe.ai when
+  # notification a controller emits, so the vroxy admin
+  # inspector (loaded cross-origin from vroxy.ai when
   # identify says role=admin) can attach "this element came from
   # `app/views/posts/_row.html.erb`" to a UI-feedback note.
   #
@@ -21,8 +21,8 @@ module Ctovibe
   # cost.
   #
   # The captured trail is stashed on the controller as
-  # `@_ctovibe_rendered_partials` (array of `{path:, ms:}`) and
-  # picked up by `Ctovibe::Snippet` at render time — it goes into
+  # `@_vroxy_rendered_partials` (array of `{path:, ms:}`) and
+  # picked up by `Vroxy::Snippet` at render time — it goes into
   # the loader's `init()` call rather than a separate meta tag,
   # so the inspector has the trail immediately without any DOM
   # scraping.
@@ -35,18 +35,18 @@ module Ctovibe
     MAX_PARTIALS = 200
 
     included do
-      around_action :ctovibe_track_rendered_partials,
-                    if: :ctovibe_admin_render_tracking_enabled?
+      around_action :vroxy_track_rendered_partials,
+                    if: :vroxy_admin_render_tracking_enabled?
     end
 
     private
 
-    def ctovibe_admin_render_tracking_enabled?
-      identity = Ctovibe::Identity.resolve(self)
+    def vroxy_admin_render_tracking_enabled?
+      identity = Vroxy::Identity.resolve(self)
       return false if identity.nil? || identity.empty?
       role = identity[:role] || identity.dig(:meta, :role) || identity.dig(:meta, "role")
       return false if role.nil?
-      Ctovibe.configuration.admin_roles.include?(role.to_s)
+      Vroxy.configuration.admin_roles.include?(role.to_s)
     rescue StandardError
       # Any failure to resolve the identity (broken current_user,
       # exception in the configured block) should silently disable
@@ -54,17 +54,17 @@ module Ctovibe
       false
     end
 
-    def ctovibe_track_rendered_partials
-      @_ctovibe_rendered_partials = []
+    def vroxy_track_rendered_partials
+      @_vroxy_rendered_partials = []
 
       partial_sub = ->(_name, start, finish, _id, payload) {
         # `break` inside a Proc raises LocalJumpError on some
         # Ruby patches — skip the append instead of trying to
         # short-circuit the enumeration.
-        next if @_ctovibe_rendered_partials.length >= MAX_PARTIALS
+        next if @_vroxy_rendered_partials.length >= MAX_PARTIALS
         identifier = payload[:identifier].to_s
         next if identifier.blank?
-        @_ctovibe_rendered_partials << {
+        @_vroxy_rendered_partials << {
           path: shorten(identifier),
           ms:   ((finish - start) * 1000).round(1)
         }

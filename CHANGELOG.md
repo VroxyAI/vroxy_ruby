@@ -1,3 +1,10 @@
+## 0.6.0 — 2026-08-24
+
+- **BREAKING: the gem is now `vroxy`** (formerly `ctovibe`) — clean break, no shims. `require "vroxy"`, `module Vroxy`, initializer `config/initializers/vroxy.rb`, generator `ctovibe:install` → `vroxy:install`, rake task file `lib/tasks/vroxy.rake`, manual API `Vroxy.report_error`.
+- Env vars renamed: `CTOVIBE_*` → `VROXY_*` (`VROXY_API_KEY`, `VROXY_ENDPOINT`, `VROXY_IDENTITY_SECRET`, `VROXY_SECRET_TOKEN`, ...). Default endpoint is now `https://vroxy.ai`.
+- Wire/JS surface renamed to match the vroxy backend: `window.vroxy(...)` global, `VroxyInspector`, error ingest and glossary sync now target vroxy.ai.
+- Gemspec: name `vroxy`, homepage `https://vroxy.ai`, contact `hello@vroxy.ai`.
+
 ## 0.5.0 — 2026-08-24
 
 - **Built-in exception reporting** — no exception_notification dependency. `Rails.error.subscribe` (Rails 7+) hands the gem every unhandled request/job exception plus anything the app reports via `Rails.error.report`; each becomes a POST to ctovibe's `/ingest/errors` (public-key authed) and lands on the workspace's Errors page. Manual API: `Ctovibe.report_error(exception, context: {...})`.

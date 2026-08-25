@@ -2,12 +2,12 @@
 
 require "openssl"
 
-module Ctovibe
+module Vroxy
   # Resolves the {email, name, external_id, role, meta} hash the
-  # snippet forwards to `ctovibe.identify(...)`.
+  # snippet forwards to `vroxy.identify(...)`.
   #
   # Order of precedence:
-  #   1. `Ctovibe.configuration.identify` — if set, its return
+  #   1. `Vroxy.configuration.identify` — if set, its return
   #      value wins (or `nil` to explicitly stay anonymous).
   #   2. Auto-detect from `controller.current_user` — covers the
   #      95% Devise / Clearance / has_secure_password case.
@@ -20,7 +20,7 @@ module Ctovibe
 
     # Public entry point.  Returns a hash (possibly empty) or nil.
     def resolve(controller)
-      block = Ctovibe.configuration.identify
+      block = Vroxy.configuration.identify
       return normalize(block.call(controller)) if block
 
       user = detect_current_user(controller)
@@ -31,7 +31,7 @@ module Ctovibe
 
     # Strip nil/blank values so the emitted JS payload doesn't
     # ship `email: null` for anonymous-ish rows.  `meta` is kept
-    # even if empty-hash-y? no — drop it too; ctovibe.identify
+    # even if empty-hash-y? no — drop it too; vroxy.identify
     # tolerates missing keys.
     def normalize(hash)
       return nil if hash.nil?
@@ -119,7 +119,7 @@ module Ctovibe
 
     # HMAC-SHA256 over the access claims, hex-encoded.  The
     # canonical string is `external_id|email|level` with nils as
-    # empty strings — ctovibe's identify endpoint recomputes the
+    # empty strings — vroxy's identify endpoint recomputes the
     # same string from the received params, so both sides must
     # never reorder or re-encode these fields.
     def signature_for(external_id:, email:, level:, secret:)

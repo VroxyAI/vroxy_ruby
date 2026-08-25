@@ -28,12 +28,12 @@ class IdentityTest < Minitest::Test
 
   def test_returns_nil_without_current_user
     controller = Object.new
-    assert_nil Ctovibe::Identity.resolve(controller)
+    assert_nil Vroxy::Identity.resolve(controller)
   end
 
   def test_auto_infers_from_current_user
     user = FakeUser.new(id: 42, email: "a@b.co", full_name: "Ada Lovelace", role: "admin")
-    result = Ctovibe::Identity.resolve(FakeController.new(user))
+    result = Vroxy::Identity.resolve(FakeController.new(user))
 
     assert_equal "42",           result[:external_id]
     assert_equal "a@b.co",       result[:email]
@@ -45,24 +45,24 @@ class IdentityTest < Minitest::Test
     user = Struct.new(:id, :email, :first_name, :last_name)
       .new(1, "x@y.co", "Grace", "Hopper")
 
-    result = Ctovibe::Identity.resolve(FakeController.new(user))
+    result = Vroxy::Identity.resolve(FakeController.new(user))
     assert_equal "Grace Hopper", result[:name]
   end
 
   def test_omits_nil_role_when_user_has_none
     user = FakeUser.new(id: 1, email: "x@y.co")
-    result = Ctovibe::Identity.resolve(FakeController.new(user))
+    result = Vroxy::Identity.resolve(FakeController.new(user))
 
     refute result.key?(:role), "role should be omitted, not nil"
   end
 
   def test_explicit_identify_block_overrides_auto_detect
-    Ctovibe.configure do |c|
+    Vroxy.configure do |c|
       c.identify = ->(_ctrl) { { email: "override@ex.com", role: "vip", meta: { plan: "pro" } } }
     end
 
     user   = FakeUser.new(id: 1, email: "wrong@ex.com", role: "basic")
-    result = Ctovibe::Identity.resolve(FakeController.new(user))
+    result = Vroxy::Identity.resolve(FakeController.new(user))
 
     assert_equal "override@ex.com", result[:email]
     assert_equal "vip",             result[:role]
@@ -71,8 +71,8 @@ class IdentityTest < Minitest::Test
   end
 
   def test_identify_block_returning_nil_disables_identify
-    Ctovibe.configure { |c| c.identify = ->(_) { nil } }
-    assert_nil Ctovibe::Identity.resolve(FakeController.new(FakeUser.new(id: 1)))
+    Vroxy.configure { |c| c.identify = ->(_) { nil } }
+    assert_nil Vroxy::Identity.resolve(FakeController.new(FakeUser.new(id: 1)))
   end
 
   def test_current_user_that_raises_falls_back_to_anonymous
@@ -82,6 +82,6 @@ class IdentityTest < Minitest::Test
       end
     end.new
 
-    assert_nil Ctovibe::Identity.resolve(controller)
+    assert_nil Vroxy::Identity.resolve(controller)
   end
 end

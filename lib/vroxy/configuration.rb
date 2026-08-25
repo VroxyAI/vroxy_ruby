@@ -1,18 +1,18 @@
 # frozen_string_literal: true
 
-module Ctovibe
+module Vroxy
   # Singleton config populated once at boot (typically from
-  # `config/initializers/ctovibe.rb`).  Kept intentionally small:
-  # the widget itself is configured server-side on ctovibe.io — the
+  # `config/initializers/vroxy.rb`).  Kept intentionally small:
+  # the widget itself is configured server-side on vroxy.ai — the
   # host-app config is just credentials + integration knobs.
   class Configuration
     # `pk_…` tenant public key.  Same value the customer sees on
-    # their ctovibe workspace settings page; safe to ship to the
+    # their vroxy workspace settings page; safe to ship to the
     # browser (that's literally what happens — the widget URL
     # carries it as a query param).  Required.
     attr_accessor :api_key
 
-    # Base URL of the ctovibe deployment serving `/widget.js`.
+    # Base URL of the vroxy deployment serving `/widget.js`.
     # Default targets prod; override for staging / self-hosted.
     attr_accessor :endpoint
 
@@ -25,7 +25,7 @@ module Ctovibe
 
     # When true (default), the Rack middleware rewrites HTML
     # responses to insert the snippet before `</body>`.  Set to
-    # false if the host app wants to place `<%= ctovibe_snippet %>`
+    # false if the host app wants to place `<%= vroxy_snippet %>`
     # by hand — e.g. inside a specific layout, or above a CSP
     # nonce'd block.
     attr_accessor :auto_inject
@@ -57,12 +57,12 @@ module Ctovibe
     # inspector.
     attr_accessor :admin_roles
 
-    # Tenant-owned ctovibe API token (tenant:write) for
+    # Tenant-owned vroxy API token (tenant:write) for
     # server-to-server calls — the glossary sync rake task.  NOT
-    # the public api_key.  Reads ENV CTOVIBE_SECRET_TOKEN.
+    # the public api_key.  Reads ENV VROXY_SECRET_TOKEN.
     attr_accessor :secret_token
 
-    # Exception reporting to ctovibe (/ingest/errors, authenticated
+    # Exception reporting to vroxy (/ingest/errors, authenticated
     # by the public api_key).  Tri-state: nil (default) auto-enables
     # in production when an api_key is present; true/false force.
     attr_writer :report_errors
@@ -78,23 +78,23 @@ module Ctovibe
       defined?(Rails) && Rails.respond_to?(:env) && Rails.env.production?
     end
 
-    # Identity-verification secret from the ctovibe workspace's
+    # Identity-verification secret from the vroxy workspace's
     # Embed page.  When set, the snippet signs the identify
     # payload's access claims (external_id / email / level) with
-    # HMAC-SHA256 — that's what lets ctovibe TRUST "this visitor
+    # HMAC-SHA256 — that's what lets vroxy TRUST "this visitor
     # is a signed-in user / an admin" and unlock access-gated bot
     # tools for them.  Without it, identify still personalizes
     # the conversation but the visitor stays at public tool
     # access (an unsigned claim would let any visitor self-claim
     # admin from the console).  Server-side only — never ship it
     # to the browser yourself; the snippet only emits the derived
-    # signature.  Reads ENV CTOVIBE_IDENTITY_SECRET.
+    # signature.  Reads ENV VROXY_IDENTITY_SECRET.
     attr_accessor :identity_secret
 
     # Optional: build an admin deep-link template for a glossary
     # term.  `->(model_key) { "https://myapp.com/admin/#{model_key}s/{id}" }`
     # — return nil to skip.  Literal "{id}" stays in the template;
-    # ctovibe fills it per record.
+    # vroxy fills it per record.
     attr_accessor :glossary_admin_url
 
     # Optional: extra glossary entries appended verbatim to the
@@ -102,15 +102,15 @@ module Ctovibe
     attr_accessor :glossary_extra
 
     def initialize
-      @api_key       = ENV["CTOVIBE_API_KEY"]
-      @endpoint      = ENV.fetch("CTOVIBE_ENDPOINT", "https://ctovibe.ai")
+      @api_key       = ENV["VROXY_API_KEY"]
+      @endpoint      = ENV.fetch("VROXY_ENDPOINT", "https://vroxy.ai")
       @auto_inject   = true
       @identify      = nil
       @csp_nonce     = nil
       @exclude_paths = []
       @admin_roles   = %w[admin owner]
-      @secret_token  = ENV["CTOVIBE_SECRET_TOKEN"]
-      @identity_secret = ENV["CTOVIBE_IDENTITY_SECRET"]
+      @secret_token  = ENV["VROXY_SECRET_TOKEN"]
+      @identity_secret = ENV["VROXY_IDENTITY_SECRET"]
       @report_errors = nil
       @error_ignore  = %w[
         ActiveRecord::RecordNotFound

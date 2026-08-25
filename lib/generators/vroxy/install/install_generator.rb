@@ -2,9 +2,9 @@
 
 require "rails/generators"
 
-module Ctovibe
+module Vroxy
   module Generators
-    # `rails generate ctovibe:install` — writes a commented
+    # `rails generate vroxy:install` — writes a commented
     # initializer with every knob the gem understands.  Keeping
     # the docs in the initializer (rather than a bare `api_key =`
     # line) means the customer's first real interaction with the
@@ -13,10 +13,10 @@ module Ctovibe
     class InstallGenerator < ::Rails::Generators::Base
       source_root File.expand_path("templates", __dir__)
 
-      desc "Copies the ctovibe initializer into config/initializers/"
+      desc "Copies the vroxy initializer into config/initializers/"
 
       def copy_initializer
-        template "ctovibe.rb", "config/initializers/ctovibe.rb"
+        template "vroxy.rb", "config/initializers/vroxy.rb"
       end
     end
   end

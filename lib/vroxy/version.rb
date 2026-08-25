@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
-module Ctovibe
-  VERSION = "0.5.0"
+module Vroxy
+  VERSION = "0.6.0"
 end

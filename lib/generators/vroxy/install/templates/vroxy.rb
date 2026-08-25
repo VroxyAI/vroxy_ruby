@@ -1,16 +1,16 @@
 # frozen_string_literal: true
 
-# ctovibe — support widget for Rails apps.
-# See https://ctovibe.io/docs/rails for the full guide.
+# vroxy — support widget for Rails apps.
+# See https://vroxy.ai/docs/rails for the full guide.
 
-Ctovibe.configure do |config|
-  # Your tenant public key from https://ctovibe.io (starts with
+Vroxy.configure do |config|
+  # Your tenant public key from https://vroxy.ai (starts with
   # `pk_`).  Safe to commit / expose — the widget bundle carries
   # it too.  For staging vs prod, prefer an env var.
-  config.api_key  = ENV.fetch("CTOVIBE_API_KEY", nil)
+  config.api_key  = ENV.fetch("VROXY_API_KEY", nil)
 
   # Override for self-hosted / staging deploys.
-  # config.endpoint = "https://ctovibe.io"
+  # config.endpoint = "https://vroxy.ai"
 
   # Set to false to disable the widget everywhere without ripping
   # the initializer out (useful for e.g. incident response).
@@ -19,7 +19,7 @@ Ctovibe.configure do |config|
 
   # When true (default), a Rack middleware appends the snippet
   # before </body> on every text/html response.  Set to false to
-  # place `<%= ctovibe_snippet %>` yourself in a layout.
+  # place `<%= vroxy_snippet %>` yourself in a layout.
   # config.auto_inject = true
 
   # Paths the middleware must NEVER touch.  Use for admin
@@ -28,7 +28,7 @@ Ctovibe.configure do |config|
   # config.exclude_paths = ["/up", %r{\A/admin}]
 
   # Custom identity resolver.  Return a Hash — top-level keys
-  # `email`, `name`, `external_id` map to ctovibe's identify
+  # `email`, `name`, `external_id` map to vroxy's identify
   # endpoint; anything else lands under `meta` (arbitrary
   # customer-defined attributes).  Return `nil` to stay
   # anonymous for this request.
@@ -48,12 +48,12 @@ Ctovibe.configure do |config|
   #   }
   # }
 
-  # Identity-verification secret from your ctovibe workspace's
+  # Identity-verification secret from your vroxy workspace's
   # Embed page.  Lets the snippet SIGN the visitor's access level
   # ("user" / "admin") so access-gated bot tools unlock for them —
   # without it, identify still personalizes the chat but the
   # visitor stays at public tool access.  Keep it server-side.
-  # config.identity_secret = ENV["CTOVIBE_IDENTITY_SECRET"]
+  # config.identity_secret = ENV["VROXY_IDENTITY_SECRET"]
 
   # If the app runs a strict Content-Security-Policy that forbids
   # inline scripts, wire up the request nonce so the identify
@@ -63,8 +63,8 @@ Ctovibe.configure do |config|
   # Roles that trigger the admin UI-feedback inspector — a
   # floating 💡 launcher (bottom-left) that lets an admin pick a
   # DOM element, screenshot the page, add a note, and file it
-  # against ctovibe.  The message flows to ctovibe.ai and gets
-  # dispatched to Claude via ctovibe_dispatch; the assistant
+  # against vroxy.  The message flows to vroxy.ai and gets
+  # dispatched to Claude via vroxy_dispatch; the assistant
   # reply lands in the widget's chat panel on the same visitor.
   #
   # Inspector bundle is loaded cross-origin from

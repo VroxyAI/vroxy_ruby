@@ -3,16 +3,16 @@
 require "json"
 require "cgi"
 
-module Ctovibe
+module Vroxy
   # Renders the HTML injected into customer pages.  Two-part output:
   #
   #   1. `<script src=".../widget.js?tenant=…" data-tenant="…" async>` —
   #      the loader served by Widget::BootController#show.  Async so
   #      it never blocks first paint; the boot script buffers any
-  #      `window.ctovibe(...)` calls into a queue until the real
+  #      `window.vroxy(...)` calls into a queue until the real
   #      bundle takes over.
   #
-  #   2. `<script>window.ctovibe("identify", {...})</script>` — only
+  #   2. `<script>window.vroxy("identify", {...})</script>` — only
   #      emitted when Identity.resolve returned a non-empty hash.
   #      This is EXACTLY the API surface documented for customers,
   #      so gem-injected identify and hand-rolled JS behave the
@@ -32,10 +32,10 @@ module Ctovibe
     # Output is 2–3 script tags:
     #
     #   1. Widget loader           (always, when enabled)
-    #   2. ctovibe.identify() call (when identity resolves to non-empty)
+    #   2. vroxy.identify() call (when identity resolves to non-empty)
     #   3. Admin inspector loader  (when identity role ∈ config.admin_roles)
     def render(controller)
-      config = Ctovibe.configuration
+      config = Vroxy.configuration
       return "" unless config.enabled?
       return "" if config.api_key.to_s.strip.empty?
 
@@ -54,8 +54,8 @@ module Ctovibe
     end
 
     # The identify snippet piggy-backs on the queueing shim the
-    # boot script installs at `window.ctovibe`.  That shim is a
-    # function that pushes arguments onto `ctovibe.q`; the real
+    # boot script installs at `window.vroxy`.  That shim is a
+    # function that pushes arguments onto `vroxy.q`; the real
     # bundle replaces the function and drains the queue.  Either
     # ordering (loader before/after this tag) works — the queue
     # is the API contract.
@@ -65,15 +65,15 @@ module Ctovibe
       nonce_attr = build_nonce_attr(config, controller)
       payload    = JSON.generate(identity_payload(identity, config))
 
-      # `window.ctovibe = window.ctovibe || function(){ (window.ctovibe.q = window.ctovibe.q || []).push(arguments) }`
+      # `window.vroxy = window.vroxy || function(){ (window.vroxy.q = window.vroxy.q || []).push(arguments) }`
       # mirrors the shim in Widget::BootController#bootstrap_source_for.
       # We install it defensively BEFORE calling identify so the
       # host page's snippet works even if the loader is deferred /
       # blocked / late.
       body = <<~JS
         (function(){
-          window.ctovibe = window.ctovibe || function(){ (window.ctovibe.q = window.ctovibe.q || []).push(arguments); };
-          window.ctovibe("identify", #{payload});
+          window.vroxy = window.vroxy || function(){ (window.vroxy.q = window.vroxy.q || []).push(arguments); };
+          window.vroxy("identify", #{payload});
         })();
       JS
 
@@ -83,9 +83,9 @@ module Ctovibe
     # Split identity into the top-level fields the widget's
     # identify endpoint understands (email/name/external_id/role)
     # and push everything else — plan, tenant_id, whatever — into
-    # `meta`, which is the ctovibe endpoint's escape hatch for
+    # `meta`, which is the vroxy endpoint's escape hatch for
     # arbitrary customer keys.  `role` ALSO stays in meta so
-    # ctovibe deployments predating the top-level field keep
+    # vroxy deployments predating the top-level field keep
     # seeing it where they always did.
     #
     # When `config.identity_secret` is set, the payload carries a
@@ -119,16 +119,16 @@ module Ctovibe
     # Emitted only when the identified user's `role` is in
     # `config.admin_roles`.  Dynamic-imports the inspector bundle
     # from `endpoint/admin_ui_inspector.js` (a stable public URL
-    # served by ctovibe.ai) and calls
-    # `window.CtovibeInspector.init(...)` with server-known
+    # served by vroxy.ai) and calls
+    # `window.VroxyInspector.init(...)` with server-known
     # context so the picker has partial + controller/action data
     # without any DOM meta-tag scraping.
     #
     # Uses a `<script type="module">` because the esbuild output
-    # on ctovibe.ai is ESM; classic script tags can't load it.
+    # on vroxy.ai is ESM; classic script tags can't load it.
     # `import()` returns a Promise so we chain `.then()` to fire
     # init once the module has finished evaluating (which is when
-    # `CtovibeInspector` is guaranteed to be on `window`).
+    # `VroxyInspector` is guaranteed to be on `window`).
     def admin_inspector_tag(identity, config, controller)
       return "" if identity.nil?
       role = identity[:role] || identity.dig(:meta, :role) || identity.dig(:meta, "role")
@@ -142,24 +142,24 @@ module Ctovibe
       body = <<~JS
         import(#{script_url.to_json})
           .then(function () {
-            if (window.CtovibeInspector && window.CtovibeInspector.init) {
-              window.CtovibeInspector.init(#{init_args});
+            if (window.VroxyInspector && window.VroxyInspector.init) {
+              window.VroxyInspector.init(#{init_args});
             }
           })
-          .catch(function (e) { try { console.warn("[ctovibe] inspector load failed:", e); } catch (_) {} });
+          .catch(function (e) { try { console.warn("[vroxy] inspector load failed:", e); } catch (_) {} });
       JS
 
       %(<script type="module"#{nonce_attr}>#{body.strip}</script>)
     end
 
-    # Args passed to `CtovibeInspector.init()`.  Only server-known
+    # Args passed to `VroxyInspector.init()`.  Only server-known
     # values — visitor_token is read client-side from the widget's
     # localStorage.  Partial trail comes from AdminRenderTracker's
-    # `@_ctovibe_rendered_partials` stash on the controller.
+    # `@_vroxy_rendered_partials` stash on the controller.
     def inspector_init_args(config, controller)
       partials =
-        if controller && controller.instance_variable_defined?(:@_ctovibe_rendered_partials)
-          controller.instance_variable_get(:@_ctovibe_rendered_partials) || []
+        if controller && controller.instance_variable_defined?(:@_vroxy_rendered_partials)
+          controller.instance_variable_get(:@_vroxy_rendered_partials) || []
         else
           []
         end

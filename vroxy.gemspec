@@ -1,19 +1,19 @@
 # frozen_string_literal: true
 
-require_relative "lib/ctovibe/version"
+require_relative "lib/vroxy/version"
 
 Gem::Specification.new do |spec|
-  spec.name        = "ctovibe"
-  spec.version     = Ctovibe::VERSION
-  spec.authors     = ["ctovibe"]
-  spec.email       = ["hello@ctovibe.io"]
+  spec.name        = "vroxy"
+  spec.version     = Vroxy::VERSION
+  spec.authors     = ["vroxy"]
+  spec.email       = ["hello@vroxy.ai"]
 
-  spec.summary     = "Rails integration for the ctovibe support widget."
-  spec.description = "Drop-in Rails gem: set your ctovibe API key and the " \
+  spec.summary     = "Rails integration for the vroxy support widget."
+  spec.description = "Drop-in Rails gem: set your vroxy API key and the " \
                      "widget snippet auto-injects on every HTML response, " \
                      "with current_user identity (email / name / role) " \
-                     "forwarded to ctovibe.identify()."
-  spec.homepage    = "https://ctovibe.io"
+                     "forwarded to vroxy.identify()."
+  spec.homepage    = "https://vroxy.ai"
   spec.license     = "MIT"
 
   # Rails 7.1 is the floor because we lean on ActionController::Base's

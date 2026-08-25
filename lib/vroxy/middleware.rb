@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-module Ctovibe
-  # Rack middleware that appends the ctovibe snippet to HTML
+module Vroxy
+  # Rack middleware that appends the vroxy snippet to HTML
   # responses.  Deliberately conservative — we only touch a
   # response when ALL of these hold:
   #
-  #   * Ctovibe is enabled (api_key present, not force-disabled).
+  #   * Vroxy is enabled (api_key present, not force-disabled).
   #   * `config.auto_inject` is true.
   #   * The request path isn't on `config.exclude_paths`.
   #   * The response Content-Type is text/html (case-insensitive).
@@ -37,7 +37,7 @@ module Ctovibe
       # (mounted Sinatra, Rack apps) — we still inject the loader
       # tag; identify just no-ops without a controller to sniff.
       controller = env["action_controller.instance"]
-      snippet    = Ctovibe::Snippet.render(controller_proxy(controller))
+      snippet    = Vroxy::Snippet.render(controller_proxy(controller))
       return [status, headers, body] if snippet.empty?
 
       new_html = html.sub(BODY_CLOSE_RE) { |m| "#{snippet}#{m}" }
@@ -56,7 +56,7 @@ module Ctovibe
     private
 
     def should_inject?(env, status, headers)
-      config = Ctovibe.configuration
+      config = Vroxy.configuration
       return false unless config.enabled?
       return false unless config.auto_inject
       return false if env[Helper::RENDERED_ENV_KEY]
