@@ -6,7 +6,7 @@ require "cgi"
 module Vroxy
   # Renders the HTML injected into customer pages.  Two-part output:
   #
-  #   1. `<script src=".../widget.js?tenant=…" data-tenant="…" async>` —
+  #   1. `<script src=".../widget.js?tenant=…" async>` —
   #      the loader served by Widget::BootController#show.  Async so
   #      it never blocks first paint; the boot script buffers any
   #      `window.vroxy(...)` calls into a queue until the real
@@ -48,9 +48,8 @@ module Vroxy
     end
 
     def loader_tag(config)
-      src    = "#{config.endpoint.chomp('/')}/widget.js?tenant=#{CGI.escape(config.api_key)}"
-      tenant = CGI.escapeHTML(config.api_key)
-      %(<script src="#{CGI.escapeHTML(src)}" data-tenant="#{tenant}" async></script>)
+      src = "#{config.endpoint.chomp('/')}/widget.js?tenant=#{CGI.escape(config.api_key)}"
+      %(<script src="#{CGI.escapeHTML(src)}" async></script>)
     end
 
     # The identify snippet piggy-backs on the queueing shim the

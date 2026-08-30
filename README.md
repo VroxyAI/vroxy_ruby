@@ -30,7 +30,7 @@ That's it. Every `text/html` response now carries the loader script + an `identi
 Two `<script>` tags appended before `</body>`:
 
 ```html
-<script src="https://vroxy.ai/widget.js?tenant=pk_live_..." data-tenant="pk_live_..." async></script>
+<script src="https://vroxy.ai/widget.js?tenant=pk_live_..." async></script>
 <script>
   (function(){
     window.vroxy = window.vroxy || function(){ (window.vroxy.q = window.vroxy.q || []).push(arguments); };

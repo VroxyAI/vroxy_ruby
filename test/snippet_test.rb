@@ -27,7 +27,7 @@ class SnippetTest < Minitest::Test
     html = Vroxy::Snippet.render(FakeController.new)
 
     assert_includes html, %(src="https://vroxy.ai/widget.js?tenant=pk_test123")
-    assert_includes html, %(data-tenant="pk_test123")
+    refute_includes html, "data-tenant"
     assert_includes html, "async"
     refute_includes html, "vroxy(\"identify\""
   end
