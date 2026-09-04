@@ -86,4 +86,28 @@ class IdentitySigningTest < Minitest::Test
     sig = Vroxy::Identity.signature_for(external_id: nil, email: "a@b.c", level: "user", secret: "s")
     assert_equal OpenSSL::HMAC.hexdigest("SHA256", "s", "|a@b.c|user"), sig
   end
+  # A field containing the separator makes the canonical string
+  # ambiguous — ("a|b", "c") and ("a", "b|c") both produce "a|b|c" —
+  # so vroxy refuses the claim.  Signing one would hand back a
+  # signature that can never verify; fail where the integrator sees it.
+  def test_signature_for_refuses_a_separator_in_any_field
+    [
+      { external_id: "ext|pipe", email: "u@ex.com", level: "user" },
+      { external_id: "7",        email: "pipe|@ex.com", level: "user" },
+      { external_id: "7",        email: "u@ex.com", level: "us|er" }
+    ].each do |claim|
+      err = assert_raises(ArgumentError) do
+        Vroxy::Identity.signature_for(**claim, secret: "s" * 48)
+      end
+      assert_match(/must not contain/, err.message)
+    end
+  end
+
+  def test_signature_for_still_signs_ordinary_claims
+    sig = Vroxy::Identity.signature_for(external_id: "7", email: "u@ex.com",
+                                        level: "admin", secret: "s" * 48)
+    assert_equal 64, sig.length
+    assert_match(/\A[0-9a-f]{64}\z/, sig)
+  end
+
 end

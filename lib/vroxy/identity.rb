@@ -122,9 +122,22 @@ module Vroxy
     # empty strings — vroxy's identify endpoint recomputes the
     # same string from the received params, so both sides must
     # never reorder or re-encode these fields.
+    # A field containing the separator makes the canonical string
+    # ambiguous — external_id "a|b" + email "c" and external_id "a" +
+    # email "b|c" both produce "a|b|c", so one identity's signature
+    # would validate the other.  vroxy refuses such a claim, so
+    # signing one would hand back a signature that can never verify.
+    # Fail here instead, where the integrator can see it.
+    FIELD_SEPARATOR = "|"
+
     def signature_for(external_id:, email:, level:, secret:)
-      canonical = [ external_id.to_s, email.to_s, level.to_s ].join("|")
-      OpenSSL::HMAC.hexdigest("SHA256", secret.to_s, canonical)
+      fields = [ external_id.to_s, email.to_s, level.to_s ]
+      if fields.any? { |f| f.include?(FIELD_SEPARATOR) }
+        raise ArgumentError,
+              "vroxy identity fields must not contain #{FIELD_SEPARATOR.inspect} " \
+              "(external_id/email/level) — the signature would be ambiguous and vroxy will reject it"
+      end
+      OpenSSL::HMAC.hexdigest("SHA256", secret.to_s, fields.join(FIELD_SEPARATOR))
     end
   end
 end

@@ -2,6 +2,17 @@
 
 - Dropped the redundant `data-tenant` attribute from the loader tag. The tenant key already rides in the script `src` query string, which is the only place the widget reads it; nothing consumed the attribute. Snippets already deployed on customer pages keep working — the attribute is simply ignored.
 
+
+## 0.7.0
+
+- **Refuse to sign an identity claim whose fields contain `|`.** The
+  signed string is `external_id|email|level`, so a field holding the
+  separator makes it ambiguous — `("a|b", "c")` and `("a", "b|c")`
+  sign identically, and one identity's signature would verify the
+  other. Vroxy now rejects such claims, so signing one produced a
+  signature that could never verify. `signature_for` raises
+  `ArgumentError` instead, where an integrator can see it.
+
 ## 0.6.0 — 2026-08-24
 
 - **BREAKING: the gem is now `vroxy`** (formerly `ctovibe`) — clean break, no shims. `require "vroxy"`, `module Vroxy`, initializer `config/initializers/vroxy.rb`, generator `ctovibe:install` → `vroxy:install`, rake task file `lib/tasks/vroxy.rake`, manual API `Vroxy.report_error`.
