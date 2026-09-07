@@ -140,6 +140,77 @@ class SnippetTest < Minitest::Test
     assert_includes html, "admin_ui_inspector.js"
   end
 
+  # A support widget must never be the reason a customer's page
+  # 500s.  auto_inject means the host app never asked us to run
+  # inside its render at all, so a failure here drops the widget
+  # and leaves the page alone — in EVERY environment, matching the
+  # Node and Python SDKs.
+  def test_a_raising_identify_block_never_breaks_the_page
+    Vroxy.configure do |c|
+      c.api_key  = "pk_1"
+      c.identify = ->(_) { raise "current_user exploded" }
+    end
+
+    out, err = capture_io do
+      assert_equal "", Vroxy::Snippet.render(FakeController.new)
+    end
+    assert_empty out
+    assert_match(/current_user exploded/, err)
+  end
+
+  def test_a_raising_identify_block_still_does_not_raise_in_production
+    original = ENV["RACK_ENV"]
+    ENV["RACK_ENV"] = "production"
+    Vroxy.configure do |c|
+      c.api_key  = "pk_1"
+      c.identify = ->(_) { raise "current_user exploded" }
+    end
+
+    capture_io { assert_equal "", Vroxy::Snippet.render(FakeController.new) }
+  ensure
+    ENV["RACK_ENV"] = original
+  end
+
+  # `|` is legal RFC 5322 atext, so `a|b@example.com` is a real
+  # address a real customer can hold.  Signing it is refused (the
+  # canonical string would be ambiguous) — but that refusal must
+  # cost the visitor a widget, never the whole page.
+  def test_an_unsignable_email_costs_the_widget_not_the_page
+    Vroxy.configure do |c|
+      c.api_key         = "pk_1"
+      c.identity_secret = "is_sekrit"
+    end
+    user = Struct.new(:id, :email, :full_name, :role).new(7, "a|b@example.com", "Pipe Person", "admin")
+
+    out, err = capture_io do
+      assert_equal "", Vroxy::Snippet.render(FakeController.new(user))
+    end
+    assert_empty out
+    assert_match(/must not contain/, err)
+  end
+
+  def test_the_signing_api_itself_still_refuses_an_ambiguous_claim
+    assert_raises(ArgumentError) do
+      Vroxy::Identity.signature_for(external_id: "a|b", email: "u@ex.com", level: "user", secret: "s")
+    end
+  end
+
+  # Under the nonce-only `script-src` the README documents, an
+  # un-nonced `<script src>` is blocked outright and the widget
+  # never boots — the inline tags being nonced doesn't help.
+  def test_csp_nonce_is_applied_to_the_loader_tag_too
+    Vroxy.configure do |c|
+      c.api_key   = "pk_1"
+      c.csp_nonce = ->(_ctrl) { "abc123" }
+    end
+
+    html = Vroxy::Snippet.render(FakeController.new(Struct.new(:id, :email, :role).new(1, "x@y.co", "admin")))
+
+    assert_includes html, %(<script src="https://vroxy.ai/widget.js?tenant=pk_1" nonce="abc123" async>)
+    assert_equal 3, html.scan(%r{nonce="abc123"}).length,
+                 "loader, identify and inspector tags each need the nonce"
+  end
+
   def test_rendered_partials_forwarded_to_init_args
     Vroxy.configure { |c| c.api_key = "pk_1" }
     user = Struct.new(:id, :email, :role).new(1, "x@y.co", "admin")

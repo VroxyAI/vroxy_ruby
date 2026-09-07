@@ -5,6 +5,7 @@
 # runtime dep) pulls in transitively.  Requiring them explicitly
 # lets the gem's isolated test suite run without booting Rails.
 require "active_support/concern"
+require "active_support/isolated_execution_state"
 require "active_support/notifications"
 
 module Vroxy
@@ -34,6 +35,11 @@ module Vroxy
     # array + downstream JSON serialization).
     MAX_PARTIALS = 200
 
+    # `render partial:, collection:` emits render_collection, not
+    # render_partial — and a row partial in a collection is the
+    # single most likely thing an admin picks in the inspector.
+    RENDER_EVENTS = /\Arender_(partial|collection)\.action_view\z/
+
     included do
       around_action :vroxy_track_rendered_partials,
                     if: :vroxy_admin_render_tracking_enabled?
@@ -45,8 +51,7 @@ module Vroxy
       identity = Vroxy::Identity.resolve(self)
       return false if identity.nil? || identity.empty?
       role = identity[:role] || identity.dig(:meta, :role) || identity.dig(:meta, "role")
-      return false if role.nil?
-      Vroxy.configuration.admin_roles.include?(role.to_s)
+      Vroxy.configuration.admin_role?(role)
     rescue StandardError
       # Any failure to resolve the identity (broken current_user,
       # exception in the configured block) should silently disable
@@ -63,14 +68,14 @@ module Vroxy
         # short-circuit the enumeration.
         next if @_vroxy_rendered_partials.length >= MAX_PARTIALS
         identifier = payload[:identifier].to_s
-        next if identifier.blank?
+        next if identifier.empty?
         @_vroxy_rendered_partials << {
           path: shorten(identifier),
           ms:   ((finish - start) * 1000).round(1)
         }
       }
 
-      ActiveSupport::Notifications.subscribed(partial_sub, "render_partial.action_view") do
+      ActiveSupport::Notifications.subscribed(partial_sub, RENDER_EVENTS) do
         yield
       end
     end
@@ -78,9 +83,10 @@ module Vroxy
     # Strip the Rails root prefix so the emitted payload doesn't
     # leak the container's absolute path.  Anything outside the
     # app tree (gems, engines) keeps its full path — that's still
-    # useful signal for Claude, not a leak.
+    # useful signal for whoever reads the feedback, not a leak.
     def shorten(identifier)
-      root = Rails.root.to_s
+      root = (Rails.root.to_s if defined?(Rails) && Rails.respond_to?(:root)).to_s
+      return identifier if root.empty?
       identifier.start_with?(root) ? identifier.sub("#{root}/", "") : identifier
     end
   end

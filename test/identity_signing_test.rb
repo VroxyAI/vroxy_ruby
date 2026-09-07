@@ -110,4 +110,45 @@ class IdentitySigningTest < Minitest::Test
     assert_match(/\A[0-9a-f]{64}\z/, sig)
   end
 
+  # An app that holds the secret elsewhere (a vault, another
+  # service) can sign the claim itself.  Those two keys used to be
+  # dropped — `level` silently, `signature` into `meta` — so the
+  # visitor arrived unverified with no sign anything was wrong.
+  def test_host_computed_level_and_signature_are_forwarded
+    Vroxy.configure do |c|
+      c.api_key  = "pk_1"
+      c.identify = lambda { |_|
+        { external_id: "7", email: "u@ex.com",
+          level: "admin", signature: hmac("elsewhere", "7", "u@ex.com", "admin") }
+      }
+    end
+
+    payload = identify_payload(Vroxy::Snippet.render(FakeController.new))
+    assert_equal "admin", payload["level"]
+    assert_equal hmac("elsewhere", "7", "u@ex.com", "admin"), payload["signature"]
+    refute payload.key?("meta"), "signature must not be filed under meta"
+  end
+
+  def test_a_signature_without_a_level_is_not_forwarded
+    Vroxy.configure do |c|
+      c.api_key  = "pk_1"
+      c.identify = ->(_) { { external_id: "7", email: "u@ex.com", signature: "deadbeef" } }
+    end
+
+    payload = identify_payload(Vroxy::Snippet.render(FakeController.new))
+    refute payload.key?("signature"), "a signature with nothing to claim is meaningless"
+    refute payload.key?("level")
+    refute payload.key?("meta")
+  end
+
+  def test_configured_secret_wins_over_a_supplied_signature
+    Vroxy.configure do |c|
+      c.api_key         = "pk_1"
+      c.identity_secret = "is_sekrit"
+      c.identify        = ->(_) { { external_id: "7", email: "u@ex.com", level: "admin", signature: "forged" } }
+    end
+
+    payload = identify_payload(Vroxy::Snippet.render(FakeController.new))
+    assert_equal hmac("is_sekrit", "7", "u@ex.com", "admin"), payload["signature"]
+  end
 end

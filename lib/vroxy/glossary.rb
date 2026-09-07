@@ -23,18 +23,34 @@ module Vroxy
   module Glossary
     module_function
 
+    # I18n pluralization keys.  Any OTHER hash under
+    # `activerecord.models.<key>` is a NAMESPACE (`admin: { user:
+    # "…" }`), not plural forms — reading its values as labels used
+    # to publish `admin` as a term aliased to the User label.
+    PLURAL_KEYS = %w[zero one two few many other].freeze
+
+    # Mirrors the server's term rule.  One unusable term would
+    # otherwise 422 the entire PUT and sync nothing at all.
+    TERM_RE = /\A[a-z0-9_ -]{2,40}\z/i
+
     # Extract candidate entries from I18n.  Pure — no network.
     def entries_from_i18n
       models = I18n.t("activerecord.models", default: {})
       return [] unless models.is_a?(Hash)
 
       entries = models.filter_map do |key, label|
-        # Nested one/other plural hashes → take both forms.
-        labels = label.is_a?(Hash) ? label.values : [ label ]
+        labels =
+          if label.is_a?(Hash)
+            next nil unless label.keys.all? { |k| PLURAL_KEYS.include?(k.to_s) }
+            label.values
+          else
+            [ label ]
+          end
         labels = labels.grep(String).map(&:strip).reject(&:empty?)
         next nil if labels.empty?
 
-        term    = key.to_s
+        term = key.to_s
+        next nil unless term.match?(TERM_RE)
         # Only interesting when the display noun DIFFERS from the
         # model name — "Product" shown as "Product" teaches nothing.
         aliases = labels.reject { |l| l.downcase == term.tr("_", " ") }

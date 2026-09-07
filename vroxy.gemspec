@@ -16,6 +16,12 @@ Gem::Specification.new do |spec|
   spec.homepage    = "https://vroxy.ai"
   spec.license     = "MIT"
 
+  spec.metadata = {
+    "allowed_push_host" => "none",
+    "source_code_uri"   => "https://github.com/VroxyAI/vroxy_ruby",
+    "changelog_uri"     => "https://github.com/VroxyAI/vroxy_ruby/blob/main/CHANGELOG.md"
+  }
+
   # Rails 7.1 is the floor because we lean on ActionController::Base's
   # modern `helper_method` semantics + Zeitwerk-friendly file layout.
   # Ruby 3.1 is the floor for `Hash#except`-on-symbols + pattern

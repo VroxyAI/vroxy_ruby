@@ -26,7 +26,7 @@ module Vroxy
       user = detect_current_user(controller)
       return nil unless user
 
-      auto_infer(user)
+      normalize(auto_infer(user))
     end
 
     # Strip nil/blank values so the emitted JS payload doesn't
@@ -112,9 +112,7 @@ module Vroxy
       explicit = identity[:level].to_s
       return explicit unless explicit.empty?
 
-      role = identity[:role]
-      return "admin" if role && config.admin_roles.map(&:to_s).include?(role.to_s)
-      "user"
+      config.admin_role?(identity[:role]) ? "admin" : "user"
     end
 
     # HMAC-SHA256 over the access claims, hex-encoded.  The

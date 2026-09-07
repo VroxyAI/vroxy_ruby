@@ -26,9 +26,18 @@ module Vroxy
     def call(env)
       status, headers, body = @app.call(env)
       return [status, headers, body] unless should_inject?(env, status, headers)
+      return [status, headers, body] unless body.respond_to?(:each)
 
       html = read_body(body)
-      return [status, headers, body] unless html && html.match?(BODY_CLOSE_RE)
+      return [status, headers, body] if html.nil?
+
+      # Reading consumed the body.  A one-shot body (an Enumerator,
+      # a file iterator, anything not built from an Array) yields
+      # nothing on a second `each`, so from here on every exit path
+      # hands back the buffered copy — never the drained original.
+      close_body(body)
+      buffered = [html]
+      return [status, headers, buffered] unless injectable?(html)
 
       # Build the snippet via the same code path the helper uses.
       # `env["action_controller.instance"]` is the request's
@@ -38,7 +47,7 @@ module Vroxy
       # tag; identify just no-ops without a controller to sniff.
       controller = env["action_controller.instance"]
       snippet    = Vroxy::Snippet.render(controller_proxy(controller))
-      return [status, headers, body] if snippet.empty?
+      return [status, headers, buffered] if snippet.empty?
 
       new_html = html.sub(BODY_CLOSE_RE) { |m| "#{snippet}#{m}" }
       new_body = [new_html]
@@ -49,7 +58,6 @@ module Vroxy
       cl_key = [ "content-length", "Content-Length" ].find { |k| new_headers.key?(k) }
       new_headers[cl_key] = new_html.bytesize.to_s if cl_key
 
-      close_body(body)
       [status, new_headers, new_body]
     end
 
@@ -60,12 +68,38 @@ module Vroxy
       return false unless config.enabled?
       return false unless config.auto_inject
       return false if env[Helper::RENDERED_ENV_KEY]
-      return false if config.excluded?(env["PATH_INFO"].to_s)
+      return false if excluded_path?(config, env)
       return false unless (200..299).cover?(status.to_i)
       return false if status.to_i == 204
+      return false if encoded?(headers)
 
       ct = header(headers, "Content-Type") || header(headers, "content-type")
       ct.to_s.match?(HTML_CT)
+    end
+
+    # An app mounted under a SCRIPT_NAME (an engine at `/admin`, a
+    # sub-URI deploy) has the prefix stripped out of PATH_INFO, so
+    # exclusion rules written against the browser-visible path used
+    # to miss.  Either form matching means "excluded" — over-
+    # excluding is the safe direction.
+    def excluded_path?(config, env)
+      path_info = env["PATH_INFO"].to_s
+      full      = "#{env['SCRIPT_NAME']}#{path_info}"
+      config.excluded?(full) || (full != path_info && config.excluded?(path_info))
+    end
+
+    # A gzipped/brotli'd body is bytes, not HTML: appending to it
+    # produces a corrupt response, and scanning it can raise on the
+    # invalid UTF-8 the compressed bytes look like.
+    def encoded?(headers)
+      encoding = header(headers, "Content-Encoding").to_s.strip.downcase
+      !encoding.empty? && encoding != "identity"
+    end
+
+    def injectable?(html)
+      html.valid_encoding? && html.match?(BODY_CLOSE_RE)
+    rescue StandardError
+      false
     end
 
     # Rack 3 lowercases header names; Rack 2 preserves the classic

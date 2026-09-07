@@ -1,0 +1,25 @@
+<h1>vroxy Rails demo</h1>
+
+<p>
+  Signed in as
+  <strong><%= current_user ? "#{current_user.name} (#{current_user.role})" : "nobody" %></strong>.
+</p>
+
+<ul>
+  <li><a href="/?as=member">as a member</a></li>
+  <li><a href="/?as=admin">as an admin</a> — also loads the UI-feedback inspector</li>
+  <li><a href="/?as=anonymous">anonymous</a> — loader only, no identify call</li>
+  <li><a href="/billing">/billing</a> — another page, same auto-injected snippet</li>
+  <li><a href="/up">/up</a> — on <code>exclude_paths</code>, never injected</li>
+</ul>
+
+<h2>Rendered partials</h2>
+<ul>
+  <%= render partial: "tip", collection: ["signed identify unlocks admin-only bot tools",
+                                          "this list is rendered from a partial"], as: :tip %>
+</ul>
+
+<p>
+  View source: the tags before <code>&lt;/body&gt;</code> are what the gem added.
+  As an admin, the inspector's <code>rendered_partials</code> lists the partial above.
+</p>

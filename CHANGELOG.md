@@ -1,9 +1,106 @@
-## 0.6.1 — 2026-08-30
+# Changelog
 
-- Dropped the redundant `data-tenant` attribute from the loader tag. The tenant key already rides in the script `src` query string, which is the only place the widget reads it; nothing consumed the attribute. Snippets already deployed on customer pages keep working — the attribute is simply ignored.
+## 0.8.0 — 2026-09-07
+
+Security and robustness pass over the whole library. The headline is a
+cross-site scripting hole in the injected snippet; the rest is the gem
+learning to never be the reason a host app breaks.
+
+### Security
+
+- **XSS: script-context escaping for every injected value.** The identify
+  payload and the inspector's init args were serialized with plain
+  `JSON.generate` and dropped into an inline `<script>`. JSON does not
+  escape `<`, so a display name (or ANY `meta` value — those routinely
+  carry org and request data) containing `</script>` closed the element
+  early and injected arbitrary HTML onto the customer's page. `<`, `>`,
+  `&`, U+2028 and U+2029 are now emitted as `\uXXXX`. The JSON still
+  parses to the identical string and signatures are computed on
+  pre-serialization values, so payload semantics and HMACs are unchanged —
+  only the bytes in the HTML.
+- **The CSP nonce is applied to the loader tag, not just the inline ones.**
+  Under the nonce-only `script-src` this gem documents, an un-nonced
+  `<script src>` is blocked outright, so the widget never booted at all
+  for anyone running strict CSP.
+
+### Never break the host app
+
+- **A snippet render failure serves the page without the widget.** An
+  identify block that raises, or an identity that cannot be signed, used
+  to propagate straight out of the Rack middleware as an HTTP 500 — on
+  every page, for that user. `|` is legal RFC 5322 atext, so
+  `a|b@example.com` is a real address that could 500 a real customer.
+  Matches the Node and Python SDKs. `Identity.signature_for` still raises
+  for direct callers.
+- **Registering the middleware can no longer crash boot.** The railtie
+  asked for `insert_after Rack::ETag`. `MiddlewareStackProxy` only RECORDS
+  that operation and validates it later, so an app that had run
+  `config.middleware.delete Rack::ETag` died at boot with "No such
+  middleware to insert after" — far outside the `rescue` that was meant to
+  handle it, making the fallback dead code. Now registered with `use`,
+  which lands innermost and therefore still inside `Rack::ETag`.
+- **A one-shot response body is never handed back drained.** Reading a body
+  to look for `</body>` consumes it; every bail-out path returned the
+  ORIGINAL body object, so any body not backed by an Array (a file
+  iterator, an Enumerator) served a blank page. The buffered copy is now
+  what gets served on every path.
+- **Compressed responses are left alone.** A gzipped body with
+  `Content-Type: text/html` was scanned as text; on Ruby that raises
+  `ArgumentError: invalid byte sequence in UTF-8` out of the middleware —
+  another 500. Responses carrying a `Content-Encoding` are now skipped, and
+  body scanning is encoding-safe regardless.
+
+### Correctness
+
+- **`admin_roles` accepts symbols.** Three places asked "is this an admin
+  role" and one compared differently, so `admin_roles = [:admin]` loaded
+  the inspector and signed `level: "admin"` while the render tracker stayed
+  off — an inspector with a permanently empty partial trail. All three now
+  call `Configuration#admin_role?`.
+- **The render tracker sees collection renders.** It subscribed to
+  `render_partial.action_view` only, but `render partial:, collection:`
+  emits `render_collection.action_view` — and a row partial rendered that
+  way is the likeliest thing an admin picks in the inspector.
+- **A host-computed `level` + `signature` pair is forwarded.** Apps holding
+  the secret elsewhere had `level` dropped silently and `signature` filed
+  into `meta`, so the visitor arrived unverified with nothing to show for
+  it.
+- **`exclude_paths` matches the browser-visible path.** An engine mounted at
+  `/admin` has that prefix in `SCRIPT_NAME`, not `PATH_INFO`, so excluding
+  `%r{\A/admin}` silently did nothing.
+- **Blank auto-inferred fields are dropped.** A user row with an empty email
+  shipped `"email":""` and identified the visitor as someone with no
+  address. The identify-block path was already normalized; auto-detect was
+  not.
+- **The glossary no longer mistakes a namespace for plural forms.**
+  `activerecord.models.admin.user` was read as plural labels for a term
+  named `admin`, publishing vocabulary the app never had. Terms the server
+  would reject are dropped locally too, so one bad model can't 422 the
+  whole sync.
+- **`Vroxy.production?`** replaces a Rails-only environment check, so
+  `report_errors` auto-mode works in a non-Rails production process.
+- `AdminRenderTracker` no longer depends on an ActiveSupport core extension
+  it never required, and tolerates `Rails.root` being unavailable.
+
+### Added
+
+- **`examples/rails-demo`** — a runnable Rails app showing install,
+  configuration, signed identify, admin-gated inspector, and
+  `exclude_paths`. Verified booting under `rackup`. See its README for what
+  is and isn't exercised.
+- 51 new tests (60 → 111). Every fix above has one, and each was proved to
+  fail when the fix is reverted.
+
+### Docs
+
+- README: install instructions no longer point at RubyGems (the gem is
+  private and unpublished), the sample payload matches what the code
+  actually emits, and `admin_roles` / `secret_token` / `glossary_*` are
+  documented.
+- The generated initializer no longer claims public keys start with `pk_`.
 
 
-## 0.7.0
+## 0.7.0 — 2026-09-06
 
 - **Refuse to sign an identity claim whose fields contain `|`.** The
   signed string is `external_id|email|level`, so a field holding the
@@ -12,6 +109,10 @@
   other. Vroxy now rejects such claims, so signing one produced a
   signature that could never verify. `signature_for` raises
   `ArgumentError` instead, where an integrator can see it.
+
+## 0.6.1 — 2026-08-30
+
+- Dropped the redundant `data-tenant` attribute from the loader tag. The tenant key already rides in the script `src` query string, which is the only place the widget reads it; nothing consumed the attribute. Snippets already deployed on customer pages keep working — the attribute is simply ignored.
 
 ## 0.6.0 — 2026-08-24
 
@@ -38,7 +139,6 @@
 - FIX: middleware now inserts INSIDE Rack::ETag (digest covers the injected body — no more cross-user 304s) and tolerates stacks without Rack::ETag; Content-Length is updated under its original header case (Rack 3 plain-Hash responses no longer get a duplicate stale header).
 - New config: `secret_token` (ENV `CTOVIBE_SECRET_TOKEN`, tenant:write API token), `glossary_admin_url` (proc building admin deep-link templates per model), `glossary_extra` (verbatim extra entries).
 
-# Changelog
 
 ## 0.2.0
 
@@ -49,7 +149,7 @@
   calls `CtovibeInspector.init({tenant, endpoint,
   controller_action, rendered_partials})`. Turns any Rails app
   running the gem into a surface where admins can pick an
-  element, add a note, and send it to Claude via ctovibe_dispatch
+  element, add a note, and send it to ctovibe's coding agent
   — without the host app writing a single line of JS or having
   ctovibe.ai-specific views.
 - **`Ctovibe::AdminRenderTracker` concern.** Auto-installed on

@@ -21,28 +21,23 @@ module Vroxy
       end
     end
 
-    # Insert as late as possible so we see the FULLY rendered body,
-    # including anything downstream middlewares (compression,
-    # ETagging) would otherwise clobber.  Rack::ETag sits near the
-    # top of the stack; putting us AFTER it means our body edits
-    # invalidate the ETag it already computed.
-    #
-    # CORRECTION: the injector must sit INSIDE Rack::ETag
-    # (insert_after = closer to the app) so the digest covers the
-    # body WITH the snippet — insert_before left two users' pages
-    # (different identify() payloads) sharing one ETag, and a
-    # conditional GET could serve user A's cached identify block
-    # to user B.  Host apps without Rack::ETag get a plain append.
     rake_tasks do
       load File.expand_path("../tasks/vroxy.rake", __dir__)
     end
 
+    # The injector must sit INSIDE Rack::ETag so the digest covers
+    # the body WITH the snippet — outside it, two users' pages
+    # (different identify() payloads) share one ETag and a
+    # conditional GET can serve user A's identify block to user B.
+    # `use` appends to the very end of the stack, which is inside
+    # every default middleware including Rack::ETag.  An explicit
+    # `insert_after Rack::ETag` would look more precise and is a
+    # trap: MiddlewareStackProxy only records the operation, so an
+    # app that ran `config.middleware.delete Rack::ETag` fails at
+    # boot with "No such middleware", far away from any rescue
+    # this file could write.
     initializer "vroxy.middleware" do |app|
-      begin
-        app.middleware.insert_after Rack::ETag, Vroxy::Middleware
-      rescue StandardError
-        app.middleware.use Vroxy::Middleware
-      end
+      app.middleware.use Vroxy::Middleware
     end
 
     # Subscribe AFTER the host's initializers ran (that's where

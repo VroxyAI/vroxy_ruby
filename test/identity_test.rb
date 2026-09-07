@@ -56,6 +56,19 @@ class IdentityTest < Minitest::Test
     refute result.key?(:role), "role should be omitted, not nil"
   end
 
+  # `""` is not an identity.  The block path has always been
+  # normalized; the auto-detect path was not, so a user row with a
+  # blank email shipped `"email":""` to the widget and identified
+  # the visitor as someone with no address.
+  def test_blank_auto_inferred_fields_are_dropped
+    user = Struct.new(:id, :email, :full_name).new(5, "", "")
+    result = Vroxy::Identity.resolve(FakeController.new(user))
+
+    refute result.key?(:email), "a blank email is not an email"
+    refute result.key?(:name)
+    assert_equal "5", result[:external_id]
+  end
+
   def test_explicit_identify_block_overrides_auto_detect
     Vroxy.configure do |c|
       c.identify = ->(_ctrl) { { email: "override@ex.com", role: "vip", meta: { plan: "pro" } } }

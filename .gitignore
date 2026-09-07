@@ -5,3 +5,6 @@
 /coverage/
 *.gem
 .DS_Store
+
+# Example apps resolve against a path checkout; their locks are noise.
+examples/**/Gemfile.lock

@@ -25,6 +25,18 @@ module Vroxy
   module Snippet
     module_function
 
+    # A `<` inside a JSON string value would otherwise close the
+    # surrounding <script> element — a user whose display name is
+    # `</script><img onerror=...>` would own every page of the host
+    # app.  U+2028 / U+2029 are JS line terminators in engines
+    # predating the ES2019 JSON superset.  The escaped forms decode
+    # back to the same characters, so the JSON stays identical.
+    SCRIPT_UNSAFE_CODEPOINTS = [ 0x3c, 0x3e, 0x26, 0x2028, 0x2029 ].freeze
+    SCRIPT_ESCAPES = SCRIPT_UNSAFE_CODEPOINTS.to_h { |cp|
+      [ cp.chr(Encoding::UTF_8), format("\\u%04x", cp) ]
+    }.freeze
+    SCRIPT_ESCAPE_RE = Regexp.union(SCRIPT_ESCAPES.keys).freeze
+
     # Renders the full snippet for a controller instance.  Returns
     # `""` when the gem is disabled or misconfigured — safe to
     # splat into a layout unconditionally.
@@ -34,22 +46,39 @@ module Vroxy
     #   1. Widget loader           (always, when enabled)
     #   2. vroxy.identify() call (when identity resolves to non-empty)
     #   3. Admin inspector loader  (when identity role ∈ config.admin_roles)
+    #
+    # A support widget must never be able to 500 a customer's page,
+    # so in production a failure here degrades to no snippet.  In
+    # every other environment it raises, because a silently missing
+    # widget is a worse thing to ship than a loud test failure.
     def render(controller)
       config = Vroxy.configuration
       return "" unless config.enabled?
       return "" if config.api_key.to_s.strip.empty?
 
       identity = Identity.resolve(controller)
-      loader   = loader_tag(config)
+      loader   = loader_tag(config, controller)
       ident    = identify_tag(identity, config, controller)
       admin    = admin_inspector_tag(identity, config, controller)
 
       "#{loader}#{ident}#{admin}"
+    rescue StandardError => e
+      warn "[vroxy] snippet render failed, page served without the widget: #{e.class}: #{e.message}"
+      ""
     end
 
-    def loader_tag(config)
-      src = "#{config.endpoint.chomp('/')}/widget.js?tenant=#{CGI.escape(config.api_key)}"
-      %(<script src="#{CGI.escapeHTML(src)}" async></script>)
+    def script_json(value)
+      JSON.generate(value).gsub(SCRIPT_ESCAPE_RE, SCRIPT_ESCAPES)
+    end
+
+    # The nonce belongs on the LOADER too, not just the inline
+    # tags: under the nonce-only `script-src` this gem documents,
+    # an un-nonced `<script src>` is blocked and the widget never
+    # boots at all.
+    def loader_tag(config, controller = nil)
+      src        = "#{config.endpoint.chomp('/')}/widget.js?tenant=#{CGI.escape(config.api_key)}"
+      nonce_attr = build_nonce_attr(config, controller)
+      %(<script src="#{CGI.escapeHTML(src)}"#{nonce_attr} async></script>)
     end
 
     # The identify snippet piggy-backs on the queueing shim the
@@ -62,7 +91,7 @@ module Vroxy
       return "" if identity.nil? || identity.empty?
 
       nonce_attr = build_nonce_attr(config, controller)
-      payload    = JSON.generate(identity_payload(identity, config))
+      payload    = script_json(identity_payload(identity, config))
 
       # `window.vroxy = window.vroxy || function(){ (window.vroxy.q = window.vroxy.q || []).push(arguments) }`
       # mirrors the shim in Widget::BootController#bootstrap_source_for.
@@ -92,24 +121,29 @@ module Vroxy
     # Identity.level_for) — that's what unlocks access-gated bot
     # tools for this visitor.  No secret → no level/signature: an
     # unsigned claim would be spoofable from the console, so the
-    # snippet doesn't emit one.
+    # snippet doesn't emit one.  An identify block that computes
+    # the pair itself (secret held elsewhere) is forwarded as-is —
+    # dropping it would silently downgrade the visitor to public.
     def identity_payload(identity, config)
       top_keys = %i[email name external_id]
       top      = identity.slice(*top_keys)
-      extra    = identity.except(*top_keys, :meta, :level)
+      extra    = identity.except(*top_keys, :meta, :level, :signature)
       meta     = identity[:meta].is_a?(Hash) ? identity[:meta].dup : {}
       meta     = extra.merge(meta) # explicit :meta wins over sugar keys
       top[:meta] = meta unless meta.empty?
       top[:role] = identity[:role].to_s unless identity[:role].to_s.empty?
 
       secret = config.identity_secret.to_s
-      unless secret.empty?
+      if !secret.empty?
         level            = Identity.level_for(identity, config)
         top[:level]      = level
         top[:signature]  = Identity.signature_for(
           external_id: identity[:external_id], email: identity[:email],
           level: level, secret: secret
         )
+      elsif !identity[:level].to_s.empty? && !identity[:signature].to_s.empty?
+        top[:level]     = identity[:level].to_s
+        top[:signature] = identity[:signature].to_s
       end
 
       top
@@ -132,14 +166,14 @@ module Vroxy
       return "" if identity.nil?
       role = identity[:role] || identity.dig(:meta, :role) || identity.dig(:meta, "role")
       return "" if role.nil?
-      return "" unless config.admin_roles.map(&:to_s).include?(role.to_s)
+      return "" unless config.admin_role?(role)
 
-      init_args  = JSON.generate(inspector_init_args(config, controller))
-      script_url = "#{config.endpoint.chomp('/')}/admin_ui_inspector.js"
+      init_args  = script_json(inspector_init_args(config, controller))
+      script_url = script_json(("#{config.endpoint.chomp('/')}/admin_ui_inspector.js"))
       nonce_attr = build_nonce_attr(config, controller)
 
       body = <<~JS
-        import(#{script_url.to_json})
+        import(#{script_url})
           .then(function () {
             if (window.VroxyInspector && window.VroxyInspector.init) {
               window.VroxyInspector.init(#{init_args});

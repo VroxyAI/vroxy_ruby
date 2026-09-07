@@ -75,7 +75,7 @@ module Vroxy
     def report_errors?
       return false if api_key.to_s.strip.empty?
       return @report_errors unless @report_errors.nil?
-      defined?(Rails) && Rails.respond_to?(:env) && Rails.env.production?
+      Vroxy.production?
     end
 
     # Identity-verification secret from the vroxy workspace's
@@ -137,11 +137,29 @@ module Vroxy
     def excluded?(path)
       exclude_paths.any? { |p| p.is_a?(Regexp) ? p === path : p == path }
     end
+
+    # One answer for "is this role an admin role", so the snippet's
+    # inspector tag, the signed access level, and the render tracker
+    # can never disagree — `admin_roles = [:admin]` used to enable
+    # two of the three and silently leave the partial trail empty.
+    def admin_role?(role)
+      return false if role.nil?
+      admin_roles.any? { |r| r.to_s == role.to_s }
+    end
   end
 
   class << self
     def configuration
       @configuration ||= Configuration.new
+    end
+
+    def production?
+      if defined?(Rails) && Rails.respond_to?(:env)
+        return Rails.env.production?
+      end
+      (ENV["RACK_ENV"] || ENV["RAILS_ENV"]).to_s == "production"
+    rescue StandardError
+      false
     end
 
     def configure

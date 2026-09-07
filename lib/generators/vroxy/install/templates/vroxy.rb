@@ -1,12 +1,13 @@
 # frozen_string_literal: true
 
 # vroxy — support widget for Rails apps.
-# See https://vroxy.ai/docs/rails for the full guide.
+# See https://docs.vroxy.ai/libraries for the full guide.
 
 Vroxy.configure do |config|
-  # Your tenant public key from https://vroxy.ai (starts with
-  # `pk_`).  Safe to commit / expose — the widget bundle carries
-  # it too.  For staging vs prod, prefer an env var.
+  # Your tenant public key, from your workspace's Embed page — a
+  # 24-character alphanumeric string.  Safe to commit / expose: it
+  # ships to the browser in the widget URL either way.  For staging
+  # vs prod, prefer an env var.
   config.api_key  = ENV.fetch("VROXY_API_KEY", nil)
 
   # Override for self-hosted / staging deploys.
@@ -63,9 +64,9 @@ Vroxy.configure do |config|
   # Roles that trigger the admin UI-feedback inspector — a
   # floating 💡 launcher (bottom-left) that lets an admin pick a
   # DOM element, screenshot the page, add a note, and file it
-  # against vroxy.  The message flows to vroxy.ai and gets
-  # dispatched to Claude via vroxy_dispatch; the assistant
-  # reply lands in the widget's chat panel on the same visitor.
+  # against vroxy.  The note reaches your vroxy workspace, and
+  # the assistant's reply comes back in the widget's chat panel
+  # for that same visitor.
   #
   # Inspector bundle is loaded cross-origin from
   # `endpoint/admin_ui_inspector.js`; the customer app doesn't

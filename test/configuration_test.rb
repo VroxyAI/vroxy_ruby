@@ -39,4 +39,39 @@ class ConfigurationTest < Minitest::Test
   def test_default_admin_roles
     assert_equal %w[admin owner], Vroxy.configuration.admin_roles
   end
+
+  # Three call sites ask this question (inspector tag, signed access
+  # level, render tracker).  When they compared differently, symbol
+  # admin_roles enabled two of the three and the inspector booted
+  # with a permanently empty partial trail.
+  def test_admin_role_accepts_symbols_on_either_side
+    Vroxy.configure { |c| c.admin_roles = [ :admin, :owner ] }
+    config = Vroxy.configuration
+
+    assert config.admin_role?("admin")
+    assert config.admin_role?(:owner)
+    refute config.admin_role?("member")
+    refute config.admin_role?(nil)
+  end
+
+  def test_admin_role_with_string_roles
+    Vroxy.configure { |c| c.admin_roles = %w[manager] }
+    assert Vroxy.configuration.admin_role?(:manager)
+    refute Vroxy.configuration.admin_role?("admin")
+  end
+
+  def test_production_falls_back_to_rack_env_without_rails
+    original = ENV["RACK_ENV"]
+    ENV["RACK_ENV"] = "production"
+    assert Vroxy.production?
+
+    Vroxy.configure { |c| c.api_key = "pk_1" }
+    assert Vroxy.configuration.report_errors?, "auto mode should arm in a non-Rails production process"
+  ensure
+    ENV["RACK_ENV"] = original
+  end
+
+  def test_production_is_false_by_default
+    refute Vroxy.production?
+  end
 end
