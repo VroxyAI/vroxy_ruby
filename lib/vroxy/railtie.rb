@@ -52,6 +52,12 @@ module Vroxy
       if defined?(Rails.error) && Vroxy.configuration.report_errors?
         Rails.error.subscribe(Vroxy::ErrorSubscriber.new)
       end
+
+      Vroxy::SafeQuery::BootCheck.run(
+        config: Vroxy.configuration.safe_query,
+        env:    Rails.env,
+        logger: Rails.logger
+      )
     end
   end
 end

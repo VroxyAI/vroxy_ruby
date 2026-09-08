@@ -90,6 +90,13 @@ Vroxy.configure do |config|
   # config.safe_query.model "Account", columns: %w[id name plan created_at]
   #
   # Running more than one app process?  Point replay defence at a
-  # shared store so a used nonce is used everywhere.
+  # shared store so a used nonce is used everywhere.  Leave it
+  # in-process and the gem warns once at boot outside development
+  # and test — it cannot count your workers or replicas from in
+  # here, so it says so rather than guessing.
   # config.safe_query.nonce_store = Rails.cache
+  #
+  # Exactly one process serves the endpoint?  Say so and the boot
+  # warning stops.
+  # config.safe_query.single_process = true
 end

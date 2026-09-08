@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.9.1 — 2026-09-07
+
+The two things 0.9.0 shipped as unverified: the replay window nobody was told
+about, and a query grammar that had only ever met SQLite.
+
+### Added
+
+- **A boot warning when replay defence is per-process.** Outside `development`
+  and `test`, an app with safe queries enabled and an in-process nonce store
+  now gets one warning through `Rails.logger` at boot. It warns; it never
+  raises and never blocks a boot.
+
+  It also admits what it can't know. "Is one process serving this?" is not
+  answerable from inside the process — Puma's worker count and the
+  replica/dyno count both live outside it, so a single-worker app on four
+  containers is indistinguishable from a single-worker app on one, and the
+  gem refuses to imply otherwise. Where evidence exists it uses it:
+  `WEB_CONCURRENCY` / `PUMA_WORKERS` above 1 turns "this may bite you" into
+  "this is biting you", and a store that is itself per-process
+  (`MemoryStore`, `NullStore`) or per-host (`FileStore`) is named as such
+  rather than counted as a fix.
+- **`config.safe_query.single_process = true`** — the intent the machine
+  can't detect, given somewhere to live. It silences the warning and is
+  explicitly an assertion the operator is making. It does NOT silence
+  `nonce_store = nil`, which is no replay defence on any number of processes.
+
+### Fixed
+
+Found by running the query grammar against a real PostgreSQL for the first
+time. All three made the two adapters answer the same question differently:
+
+- **`sum` / `average` on a non-numeric column are refused, not answered.**
+  PostgreSQL raises on `SUM(status)`; SQLite returns `0.0`. An invented
+  aggregate handed to a language model is worse than a refusal, so both now
+  refuse, naming the column and its type. `minimum` / `maximum` still work on
+  any column.
+- **A NUL byte in a query value is refused with a plain message.** PostgreSQL
+  raised a raw `ArgumentError: string contains null byte` from the driver;
+  SQLite ran the query. Neither is an answer, and no text column can hold
+  one, so it's now refused up front on every adapter.
+- **A value too wide for its column says so.** An out-of-range integer was
+  reported as "it would match NULL and wrongly return nothing", which is the
+  wrong reason: the value is out of the column's range, and the message now
+  says that. This is the difference an operator sees on a `t.integer` column,
+  which is 4 bytes on PostgreSQL and 8 on SQLite.
+
+### Testing
+
+- **The safe-query suite runs on PostgreSQL as well as SQLite.**
+  `VROXY_TEST_ADAPTER=postgresql` (plus optional `VROXY_TEST_DATABASE_URL`)
+  switches the harness; SQLite stays the default so a normal run needs no
+  service and installs no `pg`. `test/safe_query_adapter_parity_test.rb` is
+  the file both adapters must answer identically, and its first test fails
+  loudly if the switch didn't take — a Postgres run that quietly fell back to
+  SQLite must not be able to look green.
+
 ## 0.9.0 — 2026-09-07
 
 Safe queries: a read-only, allowlisted way for the vroxy bot to answer

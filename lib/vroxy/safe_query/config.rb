@@ -24,7 +24,7 @@ module Vroxy
                   :timestamp_tolerance, :max_requests_per_minute,
                   :rate_limiter
       attr_accessor :nonce_store
-      attr_writer :enabled
+      attr_writer :enabled, :single_process
 
       def initialize
         @rules                   = {}
@@ -34,6 +34,7 @@ module Vroxy
         @timestamp_tolerance     = DEFAULT_TOLERANCE
         @max_requests_per_minute = DEFAULT_REQUESTS_PER_MINUTE
         @enabled                 = nil
+        @single_process          = false
         @nonce_store             = NonceStore.new
         @rate_limiter            = RateLimiter.new
         @secret                  = secret_from_env
@@ -101,6 +102,10 @@ module Vroxy
         return true if @enabled.nil?
 
         !!@enabled
+      end
+
+      def single_process
+        !!@single_process
       end
 
       def max_rows_for(rule)

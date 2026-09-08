@@ -251,6 +251,16 @@ Answers come back as `{"ok": true, "result": …, "sql": "SELECT …"}`, and a
 refusal as `{"ok": false, "error": "…"}` explaining which rule it hit. The
 SQL is returned so a human can audit exactly what ran.
 
+A refusal is preferred to a wrong number. `sum` and `average` need a numeric
+column — asking either of them for a string, boolean or timestamp column is
+refused rather than answered, because SQLite happily returns `0.0` for
+`SUM(status)` while PostgreSQL raises, and an invented aggregate is worse
+than no aggregate. `minimum` and `maximum` still work on any column. Values
+are checked against the column before the query runs: one that can't be cast
+is refused ("it would match NULL and wrongly return nothing") and one too
+wide for the column is refused as out of range, rather than quietly matching
+nothing.
+
 ### What makes it read-only
 
 - Every query runs inside a transaction that is **always rolled back**.
@@ -299,6 +309,27 @@ burned on all of them:
 config.safe_query.nonce_store = Rails.cache   # Redis / Memcached
 ```
 
+Outside `development` and `test`, the gem logs a single warning at boot when
+safe queries are enabled and the nonce store is per-process. It cannot tell
+you whether that is a problem: the number of Puma workers and the number of
+replicas/dynos both live outside the process, so a single-worker app on four
+containers looks identical from in here to a single-worker app on one. What
+the warning does is say so, name the fix, and get sharper when it honestly
+can — a `WEB_CONCURRENCY`/`PUMA_WORKERS` above 1 turns "this may bite you"
+into "this is biting you", and a `nonce_store` that is itself per-process
+(`MemoryStore`, `NullStore`) or per-host (`FileStore`) is named as such. It
+warns; it never raises and never stops a boot.
+
+If exactly one process serves the endpoint, say so and the warning stops:
+
+```ruby
+config.safe_query.single_process = true
+```
+
+That flag is an assertion you are making, not something the gem can verify,
+and it does not silence the separate warning for `nonce_store = nil` — with
+no store there is no replay defence even on one process.
+
 To see the allowlist vroxy sees, POST a signed `{"describe": true}` — it
 returns the models, the columns, and nothing else.
 
@@ -345,6 +376,7 @@ All under `config.safe_query`.
 | `timestamp_tolerance` | `300`                   | Seconds of clock skew allowed (max 900).                                |
 | `max_requests_per_minute` | `60`                | Request cap; `0` closes the endpoint.                                   |
 | `nonce_store`   | in-process                    | Set to `Rails.cache` for multi-process replay defence.                  |
+| `single_process` | `false`                      | Assert that one process serves the endpoint; silences the boot warning above. |
 
 ## Manual placement (auto-inject off)
 
@@ -382,6 +414,26 @@ Anything else is a passthrough — the original response bytes are untouched. Re
 bundle install
 bundle exec rake test
 ```
+
+The suite runs on SQLite by default, with no service to start. The safe-query
+tests also run against a real PostgreSQL, because that is where most host apps
+live and the two adapters do not agree about everything:
+
+```bash
+docker run -d --name vroxy-pg-test -p 55432:5432 \
+  -e POSTGRES_USER=vroxy_test -e POSTGRES_PASSWORD=vroxy_test \
+  -e POSTGRES_DB=vroxy_gem_test postgres:16-alpine
+
+VROXY_TEST_ADAPTER=postgresql bundle install
+VROXY_TEST_ADAPTER=postgresql bundle exec rake test
+```
+
+`VROXY_TEST_DATABASE_URL` overrides the connection. `pg` is only installed
+when `VROXY_TEST_ADAPTER` is set, so the default run stays dependency-free.
+`test/safe_query_adapter_parity_test.rb` is the file that has to give the same
+answer on both, and its first test fails loudly if the adapter switch didn't
+take effect — a Postgres run that silently fell back to SQLite must not look
+green.
 
 ## License
 

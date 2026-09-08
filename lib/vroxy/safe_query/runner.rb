@@ -14,7 +14,10 @@ module Vroxy
       TERMINALS   = %w[count sum average minimum maximum pluck first last to_a exists?].freeze
       ROW_TERMINALS = %w[pluck to_a].freeze
       COLUMN_TERMINALS = %w[sum average minimum maximum].freeze
+      NUMERIC_TERMINALS = %w[sum average].freeze
       DIRECTIONS  = %w[asc desc].freeze
+
+      NON_NUMERIC_TYPES = %i[string text boolean date datetime time binary json jsonb uuid inet].freeze
 
       REL_TIME_RE = /\A(\d+)\.(second|minute|hour|day|week|month|year)s?\.(ago|from_now)\z/
       DATE_RE     = /\A\d{4}-\d{2}-\d{2}/
@@ -215,8 +218,18 @@ module Vroxy
           raise QueryError, "#{terminal} needs a column name in terminal_args" if column.empty?
 
           checked_columns!(rule, klass, [ column ], terminal)
+          assert_numeric!(rule, klass, column, terminal) if NUMERIC_TERMINALS.include?(terminal)
           relation.public_send(terminal, column)
         end
+      end
+
+      def assert_numeric!(rule, klass, column, terminal)
+        type = column_type(klass, column)
+        return unless NON_NUMERIC_TYPES.include?(type)
+
+        raise QueryError,
+              "#{terminal} needs a numeric column — #{rule.model_name}.#{column} is a #{type} column. " \
+              "Use minimum or maximum for an extreme, or count for a tally."
       end
 
       def checked_columns!(rule, klass, columns, context)
@@ -241,20 +254,28 @@ module Vroxy
         elements = value.is_a?(Array) ? value : [ value ]
         elements.each do |element|
           next if element.nil?
+          next unless serialize_or_refuse_range(rule, klass, type, column, element).nil?
 
-          serialized = begin
-            type.serialize(element)
-          rescue StandardError
-            nil
-          end
-          next unless serialized.nil?
-
-          column_type = klass.columns_hash[column.to_s]&.type
           raise QueryError,
                 "`where` value #{element.inspect} cannot be represented as " \
-                "#{rule.model_name}.#{column} (a #{column_type} column) — " \
+                "#{rule.model_name}.#{column} (a #{column_type(klass, column)} column) — " \
                 "it would match NULL and wrongly return nothing."
         end
+      end
+
+      def serialize_or_refuse_range(rule, klass, type, column, element)
+        type.serialize(element)
+      rescue ::RangeError
+        raise QueryError,
+              "`where` value #{element.inspect} is out of range for " \
+              "#{rule.model_name}.#{column} (a #{column_type(klass, column)} column) — " \
+              "no row can hold a number that size, so nothing could match it."
+      rescue StandardError
+        nil
+      end
+
+      def column_type(klass, column)
+        klass.columns_hash[column.to_s]&.type
       end
 
       def coerce_value(value)
@@ -268,6 +289,12 @@ module Vroxy
       end
 
       def coerce_string(value)
+        if value.include?("\u0000")
+          raise QueryError,
+                "a `where` value carries a NUL byte, which no text column can store — " \
+                "strip it before querying."
+        end
+
         if (match = value.match(REL_TIME_RE))
           amount = match[1].to_i
           unit   = DURATION_UNITS.fetch(match[2])

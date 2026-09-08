@@ -5,16 +5,37 @@ require "active_record"
 
 module SafeQueryFixtures
   DB_PATH = File.expand_path("../../tmp/safe_query_test.sqlite3", __dir__)
+  DEFAULT_ADAPTER = "sqlite3"
+  DEFAULT_POSTGRES_URL = "postgres://vroxy_test:vroxy_test@127.0.0.1:55432/vroxy_gem_test"
 
   module_function
+
+  def adapter
+    name = ENV.fetch("VROXY_TEST_ADAPTER", DEFAULT_ADAPTER).to_s
+    name = "postgresql" if name == "postgres" || name == "pg"
+    name
+  end
+
+  def postgresql?
+    adapter == "postgresql"
+  end
+
+  def connection_spec
+    return { adapter: "sqlite3", database: DB_PATH } unless postgresql?
+
+    ENV.fetch("VROXY_TEST_DATABASE_URL", DEFAULT_POSTGRES_URL)
+  end
 
   def connect!
     return if @connected
 
-    FileUtils.mkdir_p(File.dirname(DB_PATH))
-    FileUtils.rm_f(DB_PATH)
+    unless postgresql?
+      FileUtils.mkdir_p(File.dirname(DB_PATH))
+      FileUtils.rm_f(DB_PATH)
+    end
+
     ActiveRecord::Base.logger = nil
-    ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: DB_PATH)
+    ActiveRecord::Base.establish_connection(connection_spec)
     build_schema!
     define_models!
     @connected = true
@@ -26,6 +47,7 @@ module SafeQueryFixtures
       t.integer  :account_id
       t.string   :status
       t.integer  :amount
+      t.integer  :small_amount, limit: 4
       t.boolean  :archived, default: false
       t.string   :secret_note
       t.datetime :created_at
