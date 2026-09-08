@@ -101,6 +101,10 @@ module Vroxy
     # i18n-derived ones — `[{ "term" => ..., "aliases" => [...] }]`.
     attr_accessor :glossary_extra
 
+    def safe_query
+      @safe_query ||= SafeQuery::Config.new
+    end
+
     def initialize
       @api_key       = ENV["VROXY_API_KEY"]
       @endpoint      = ENV.fetch("VROXY_ENDPOINT", "https://vroxy.ai")

@@ -1,5 +1,70 @@
 # Changelog
 
+## 0.9.0 — 2026-09-07
+
+Safe queries: a read-only, allowlisted way for the vroxy bot to answer
+questions about the host app's OWN data.
+
+The bot could already answer questions about a conversation. It could not
+answer "how many deals closed this week?", because that model lives in the
+customer's database, which vroxy has no access to and must never have. This
+gem is the only vroxy code running inside the host app, so this is where
+that closes.
+
+### Added
+
+- **`config.safe_query.model "Deal", columns: [...], scope: ->(rel) { ... }`**
+  — opt-in allowlist. A model that isn't declared is not queryable, and an
+  undeclared column can never be selected, filtered, grouped or ordered on
+  (so it can't be probed for values either). The `scope:` lambda runs before
+  any caller step and cannot be widened: every step in the grammar narrows.
+- **An HMAC-authenticated endpoint** at `/vroxy/query`
+  (`config.safe_query.path`), registered as Rack middleware. It is a 404
+  passthrough until a secret AND a model are configured, so installing the
+  gem opens nothing. `{"describe": true}` returns the allowlist.
+- **The same query grammar the vroxy server uses**, so there is one shape to
+  learn and one to attack: `where` / `where_not` / `order` / `limit` /
+  `offset` / `group`; `count` / `sum` / `average` / `minimum` / `maximum` /
+  `pluck` / `first` / `last` / `to_a` / `exists?`; `_gt` / `_gte` / `_lt` /
+  `_lte` suffixes; relative times like `"7.days.ago"`. Answers carry the
+  result AND the SQL that ran, so a human can audit it.
+- **Golden vectors** (`test/vectors/`) covering the grammar and the HMAC,
+  in the same spirit as the identity-signing vectors — the fixture,
+  allowlist and expected outcomes all live in the JSON, so a port to another
+  host language can be checked against the same file instead of drifting.
+
+### Security properties
+
+- **Genuinely read-only.** Every query runs in a transaction that is always
+  rolled back, so even a model callback or a `scope:` lambda that writes
+  leaves nothing behind. No write terminal exists or can be reached.
+- **No caller string ever becomes SQL.** Column names are checked against
+  the allowlist and used as identifiers; values are bound. A column name
+  like `id) OR 1=1 --` is refused, not escaped — the allowlist is a
+  yes-list, not a sanitizer.
+- **A separate secret from `identity_secret`.** That one signs public
+  identity claims the app makes TO vroxy; this one lets vroxy read FROM the
+  database. Different direction, different blast radius, rotated
+  independently — and reusing one key across both directions of a protocol
+  is how a signature minted for one purpose gets replayed as the other. The
+  canonical string is domain-separated (`vroxy:query:v1`) so even an
+  accidental reuse cannot cross-validate.
+- **Replay, tamper and staleness are all refused**: single-use nonce,
+  ±5 minute timestamp window, constant-time comparison over the exact
+  request bytes. Malformed nonces and stale timestamps are rejected before
+  the nonce store is touched, so an unauthenticated flood can't fill it.
+- **Credential-shaped column names are refused at boot**, in the
+  initializer where the integrator can see it, rather than quietly at query
+  time.
+- Bounded cost: row caps (including on grouped aggregates), a 16 KB body
+  limit, a step-count cap, and a per-minute request limit.
+
+### Note for multi-process deployments
+
+Replay defence is in-process by default. Set
+`config.safe_query.nonce_store = Rails.cache` (Redis/Memcached) so a nonce
+burned on one worker is burned on all of them.
+
 ## 0.8.0 — 2026-09-07
 
 Security and robustness pass over the whole library. The headline is a

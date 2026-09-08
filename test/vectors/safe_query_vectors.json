@@ -1,0 +1,336 @@
+{
+  "about": "Golden vectors for the vroxy safe-query grammar. The fixture, allowlist and settings below are the whole world a runner needs; every case is payload -> expected outcome. Ports of this grammar (Node, Python, other hosts) must reproduce these exactly, so the host-app surface and the vroxy server's query tool cannot drift apart.",
+  "settings": {
+    "default_rows": 3,
+    "max_rows": 5
+  },
+  "fixture": {
+    "tables": [
+      {
+        "name": "vq_deals",
+        "model": "VqDeal",
+        "columns": [
+          { "name": "id", "type": "integer" },
+          { "name": "account_id", "type": "integer" },
+          { "name": "status", "type": "string" },
+          { "name": "amount", "type": "integer" },
+          { "name": "archived", "type": "boolean" },
+          { "name": "secret_note", "type": "string" },
+          { "name": "created_at", "type": "datetime" }
+        ],
+        "rows": [
+          { "id": 1, "account_id": 1, "status": "won",  "amount": 500, "archived": false, "secret_note": "internal", "created_at": "2020-01-01T00:00:00Z" },
+          { "id": 2, "account_id": 1, "status": "open", "amount": 250, "archived": false, "secret_note": "internal", "created_at": "2020-01-02T00:00:00Z" },
+          { "id": 3, "account_id": 2, "status": "open", "amount": 100, "archived": false, "secret_note": "internal", "created_at": "2020-01-03T00:00:00Z" },
+          { "id": 4, "account_id": 2, "status": "lost", "amount": 999, "archived": true,  "secret_note": "hidden",   "created_at": "2020-01-04T00:00:00Z" },
+          { "id": 5, "account_id": 1, "status": "open", "amount": 10,  "archived": false, "secret_note": "internal", "created_at": "2020-01-05T00:00:00Z" },
+          { "id": 6, "account_id": 1, "status": "open", "amount": 20,  "archived": false, "secret_note": "internal", "created_at": "2020-01-06T00:00:00Z" },
+          { "id": 7, "account_id": 2, "status": "won",  "amount": 30,  "archived": false, "secret_note": "internal", "created_at": "2020-01-07T00:00:00Z" }
+        ]
+      },
+      {
+        "name": "vq_accounts",
+        "model": "VqAccount",
+        "columns": [
+          { "name": "id", "type": "integer" },
+          { "name": "name", "type": "string" },
+          { "name": "plan", "type": "string" },
+          { "name": "api_key", "type": "string" },
+          { "name": "created_at", "type": "datetime" }
+        ],
+        "rows": [
+          { "id": 1, "name": "Northwind", "plan": "pro",  "api_key": "not-a-real-key-1", "created_at": "2019-01-01T00:00:00Z" },
+          { "id": 2, "name": "Acme",     "plan": "free", "api_key": "not-a-real-key-2", "created_at": "2019-02-01T00:00:00Z" }
+        ]
+      },
+      {
+        "name": "vq_ledgers",
+        "model": "VqLedger",
+        "columns": [
+          { "name": "id", "type": "integer" },
+          { "name": "note", "type": "string" }
+        ],
+        "rows": []
+      }
+    ]
+  },
+  "allowlist": [
+    {
+      "model": "VqDeal",
+      "columns": ["id", "account_id", "status", "amount", "archived", "created_at"],
+      "scope": { "where": { "archived": false } }
+    },
+    {
+      "model": "VqAccount",
+      "columns": ["id", "name", "plan", "created_at"]
+    }
+  ],
+  "cases": [
+    {
+      "name": "count honours the declared scope",
+      "payload": { "model": "VqDeal", "terminal": "count" },
+      "expect": { "ok": true, "result": 6 }
+    },
+    {
+      "name": "count is never row-capped, so totals stay true",
+      "note": "max_rows is 5 and the answer is 6 — a limit applied here would silently under-report.",
+      "payload": { "model": "VqDeal", "terminal": "count" },
+      "expect": { "ok": true, "result": 6 }
+    },
+    {
+      "name": "where narrows",
+      "payload": { "model": "VqDeal", "scope": [{ "where": { "status": "open" } }], "terminal": "count" },
+      "expect": { "ok": true, "result": 4 }
+    },
+    {
+      "name": "sum over an allowed column",
+      "payload": { "model": "VqDeal", "terminal": "sum", "terminal_args": ["amount"] },
+      "expect": { "ok": true, "result": 910 }
+    },
+    {
+      "name": "maximum over an allowed column",
+      "payload": { "model": "VqDeal", "terminal": "maximum", "terminal_args": ["amount"] },
+      "expect": { "ok": true, "result": 500 }
+    },
+    {
+      "name": "minimum over an allowed column",
+      "payload": { "model": "VqDeal", "terminal": "minimum", "terminal_args": ["amount"] },
+      "expect": { "ok": true, "result": 10 }
+    },
+    {
+      "name": "pluck falls back to the default row limit",
+      "payload": { "model": "VqDeal", "scope": [{ "order": "amount desc" }], "terminal": "pluck", "terminal_args": ["id"] },
+      "expect": { "ok": true, "result": [1, 2, 3] }
+    },
+    {
+      "name": "an oversized explicit limit is clamped to max_rows",
+      "payload": {
+        "model": "VqDeal",
+        "scope": [{ "order": "amount asc" }, { "limit": 500 }],
+        "terminal": "pluck",
+        "terminal_args": ["id"]
+      },
+      "expect": { "ok": true, "result": [5, 6, 7, 3, 2] }
+    },
+    {
+      "name": "offset walks the ordered page",
+      "payload": {
+        "model": "VqDeal",
+        "scope": [{ "order": "amount asc" }, { "limit": 2 }, { "offset": 2 }],
+        "terminal": "pluck",
+        "terminal_args": ["id"]
+      },
+      "expect": { "ok": true, "result": [7, 3] }
+    },
+    {
+      "name": "group + count buckets by an allowed column",
+      "payload": { "model": "VqDeal", "scope": [{ "group": "status" }], "terminal": "count" },
+      "expect": { "ok": true, "result": { "won": 2, "open": 4 } }
+    },
+    {
+      "name": "greater-than suffix",
+      "payload": { "model": "VqDeal", "scope": [{ "where": { "amount_gt": 100 } }], "terminal": "count" },
+      "expect": { "ok": true, "result": 2 }
+    },
+    {
+      "name": "less-than-or-equal suffix",
+      "payload": { "model": "VqDeal", "scope": [{ "where": { "amount_lte": 30 } }], "terminal": "count" },
+      "expect": { "ok": true, "result": 3 }
+    },
+    {
+      "name": "relative time parses and filters",
+      "payload": { "model": "VqDeal", "scope": [{ "where": { "created_at_gte": "7.days.ago" } }], "terminal": "count" },
+      "expect": { "ok": true, "result": 0 }
+    },
+    {
+      "name": "relative time the other way round",
+      "payload": { "model": "VqDeal", "scope": [{ "where": { "created_at_lte": "7.days.ago" } }], "terminal": "count" },
+      "expect": { "ok": true, "result": 6 }
+    },
+    {
+      "name": "absolute date parses and filters",
+      "payload": { "model": "VqDeal", "scope": [{ "where": { "created_at_gte": "2020-01-05T00:00:00Z" } }], "terminal": "count" },
+      "expect": { "ok": true, "result": 3 }
+    },
+    {
+      "name": "to_a returns only declared columns",
+      "payload": { "model": "VqDeal", "scope": [{ "where": { "id": 1 } }], "terminal": "to_a" },
+      "expect": {
+        "ok": true,
+        "result": [
+          { "id": 1, "account_id": 1, "status": "won", "amount": 500, "archived": false, "created_at": "2020-01-01T00:00:00Z" }
+        ]
+      }
+    },
+    {
+      "name": "exists? cannot see a scoped-out row",
+      "payload": { "model": "VqDeal", "scope": [{ "where": { "status": "lost" } }], "terminal": "exists?" },
+      "expect": { "ok": true, "result": false }
+    },
+    {
+      "name": "where cannot re-admit what the scope excluded",
+      "payload": { "model": "VqDeal", "scope": [{ "where": { "archived": true } }], "terminal": "count" },
+      "expect": { "ok": true, "result": 0 }
+    },
+    {
+      "name": "where_not cannot re-admit what the scope excluded",
+      "payload": { "model": "VqDeal", "scope": [{ "where_not": { "archived": false } }], "terminal": "count" },
+      "expect": { "ok": true, "result": 0 }
+    },
+    {
+      "name": "a second model is queryable when declared",
+      "payload": { "model": "VqAccount", "terminal": "count" },
+      "expect": { "ok": true, "result": 2 }
+    },
+    {
+      "name": "an undeclared model is refused",
+      "payload": { "model": "VqLedger", "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "not exposed to vroxy" }
+    },
+    {
+      "name": "an arbitrary Ruby constant is not a model",
+      "payload": { "model": "Kernel", "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "not exposed to vroxy" }
+    },
+    {
+      "name": "an undeclared column is refused in where",
+      "payload": { "model": "VqDeal", "scope": [{ "where": { "secret_note": "hidden" } }], "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "where column \"secret_note\" is not an allowed column" }
+    },
+    {
+      "name": "an undeclared column is refused in where_not",
+      "payload": { "model": "VqDeal", "scope": [{ "where_not": { "secret_note": "hidden" } }], "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "where_not column \"secret_note\" is not an allowed column" }
+    },
+    {
+      "name": "an undeclared column is refused behind a comparison suffix",
+      "payload": { "model": "VqDeal", "scope": [{ "where": { "secret_note_gt": "a" } }], "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "not an allowed column" }
+    },
+    {
+      "name": "an undeclared column is refused in order",
+      "payload": { "model": "VqDeal", "scope": [{ "order": "secret_note desc" }], "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "order column \"secret_note\" is not an allowed column" }
+    },
+    {
+      "name": "an undeclared column is refused in group",
+      "payload": { "model": "VqDeal", "scope": [{ "group": "secret_note" }], "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "group column \"secret_note\" is not an allowed column" }
+    },
+    {
+      "name": "an undeclared column is refused in pluck",
+      "payload": { "model": "VqDeal", "terminal": "pluck", "terminal_args": ["secret_note"] },
+      "expect": { "ok": false, "error_matches": "pluck column \"secret_note\" is not an allowed column" }
+    },
+    {
+      "name": "an undeclared column is refused in a numeric terminal",
+      "payload": { "model": "VqDeal", "terminal": "sum", "terminal_args": ["secret_note"] },
+      "expect": { "ok": false, "error_matches": "sum column \"secret_note\" is not an allowed column" }
+    },
+    {
+      "name": "a credential column is invisible even on a declared model",
+      "payload": { "model": "VqAccount", "scope": [{ "where": { "api_key": "not-a-real-key-1" } }], "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "not an allowed column" }
+    },
+    {
+      "name": "another model's column is refused",
+      "payload": { "model": "VqDeal", "scope": [{ "where": { "plan": "pro" } }], "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "not an allowed column" }
+    },
+    {
+      "name": "delete_all is not a terminal",
+      "payload": { "model": "VqDeal", "terminal": "delete_all" },
+      "expect": { "ok": false, "error_matches": "Terminal \"delete_all\" not allowed" }
+    },
+    {
+      "name": "update_all is not a terminal",
+      "payload": { "model": "VqDeal", "terminal": "update_all", "terminal_args": [{ "status": "won" }] },
+      "expect": { "ok": false, "error_matches": "not allowed" }
+    },
+    {
+      "name": "destroy_all is not a terminal",
+      "payload": { "model": "VqDeal", "terminal": "destroy_all" },
+      "expect": { "ok": false, "error_matches": "not allowed" }
+    },
+    {
+      "name": "find_by_sql is not a terminal",
+      "payload": { "model": "VqDeal", "terminal": "find_by_sql", "terminal_args": ["SELECT * FROM vq_accounts"] },
+      "expect": { "ok": false, "error_matches": "not allowed" }
+    },
+    {
+      "name": "unscope is not a scope step",
+      "payload": { "model": "VqDeal", "scope": [{ "unscope": "where" }], "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "method \"unscope\" not allowed" }
+    },
+    {
+      "name": "or is not a scope step",
+      "payload": { "model": "VqDeal", "scope": [{ "or": { "archived": true } }], "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "method \"or\" not allowed" }
+    },
+    {
+      "name": "rewhere is not a scope step",
+      "payload": { "model": "VqDeal", "scope": [{ "rewhere": { "archived": true } }], "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "not allowed" }
+    },
+    {
+      "name": "joins is not a scope step",
+      "payload": { "model": "VqDeal", "scope": [{ "joins": "vq_accounts" }], "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "not allowed" }
+    },
+    {
+      "name": "a raw SQL fragment as a column name is refused",
+      "payload": { "model": "VqDeal", "scope": [{ "where": { "id) OR 1=1 --": 1 } }], "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "not an allowed column" }
+    },
+    {
+      "name": "a subselect in a pluck column is refused",
+      "payload": { "model": "VqDeal", "terminal": "pluck", "terminal_args": ["(SELECT api_key FROM vq_accounts LIMIT 1)"] },
+      "expect": { "ok": false, "error_matches": "not an allowed column" }
+    },
+    {
+      "name": "a SQL fragment in an order direction is refused",
+      "payload": { "model": "VqDeal", "scope": [{ "order": "id desc; DROP TABLE vq_deals" }], "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "direction \"desc; DROP TABLE vq_deals\" not allowed. Allowed: asc, desc" }
+    },
+    {
+      "name": "SQL injection in a value stays a quoted literal",
+      "payload": { "model": "VqDeal", "scope": [{ "where": { "status": "'; DROP TABLE vq_deals; --" } }], "terminal": "count" },
+      "expect": { "ok": true, "result": 0 }
+    },
+    {
+      "name": "a nested hash value is not a supported primitive",
+      "payload": { "model": "VqDeal", "scope": [{ "where": { "status": { "in": ["open"] } } }], "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "not a supported primitive" }
+    },
+    {
+      "name": "a step must be a single-key hash",
+      "payload": { "model": "VqDeal", "scope": [{ "where": { "status": "open" }, "limit": 1 }], "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "exactly one key" }
+    },
+    {
+      "name": "a value the column cannot represent is refused rather than matching nothing",
+      "payload": { "model": "VqDeal", "scope": [{ "where": { "amount": "not-a-number" } }], "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "would match NULL" }
+    },
+    {
+      "name": "an array value is an IN list",
+      "payload": { "model": "VqDeal", "scope": [{ "where": { "status": ["won", "open"] } }], "terminal": "count" },
+      "expect": { "ok": true, "result": 6 }
+    },
+    {
+      "name": "terminal is required",
+      "payload": { "model": "VqDeal" },
+      "expect": { "ok": false, "error_matches": "`terminal` is required" }
+    },
+    {
+      "name": "model is required",
+      "payload": { "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "`model` is required" }
+    },
+    {
+      "name": "scope must be an array",
+      "payload": { "model": "VqDeal", "scope": { "where": { "status": "open" } }, "terminal": "count" },
+      "expect": { "ok": false, "error_matches": "`scope` must be an array" }
+    }
+  ]
+}

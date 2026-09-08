@@ -9,6 +9,7 @@ require "vroxy/helper"
 require "vroxy/middleware"
 require "vroxy/glossary"
 require "vroxy/error_reporter"
+require "vroxy/safe_query"
 
 # Railtie is optional — loading it only when Rails is present
 # lets `require "vroxy"` succeed in a plain Rack / Sinatra app

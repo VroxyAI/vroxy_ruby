@@ -40,6 +40,10 @@ module Vroxy
       app.middleware.use Vroxy::Middleware
     end
 
+    initializer "vroxy.safe_query" do |app|
+      app.middleware.use Vroxy::SafeQuery::Middleware
+    end
+
     # Subscribe AFTER the host's initializers ran (that's where
     # api_key / report_errors get set).  `Rails.error.subscribe`
     # hands the subscriber every unhandled request/job exception —

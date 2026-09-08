@@ -6,7 +6,7 @@ Set your API key, and the widget snippet auto-injects on every HTML response —
 
 ## Install
 
-The gem is **not published to RubyGems** (pre-launch, private), so point Bundler at the repo or a local checkout:
+The gem is **not published to RubyGems**, so point Bundler at the repo or a local checkout:
 
 ```ruby
 # Gemfile
@@ -165,6 +165,143 @@ rescue Stripe::CardError => e
 The widget reports its own JS errors from customer pages automatically,
 and host pages can call `vroxy("reportError", err, { where: "checkout" })`.
 
+## Safe queries (let the bot answer questions about YOUR data)
+
+The vroxy bot can answer questions about a conversation. It cannot answer
+"how many deals closed this week?", because `Deal` lives in **your**
+database — which vroxy has no access to and should never have.
+
+This gem is the only vroxy code running inside your app, so this is where
+that gap closes. You declare a read-only allowlist; vroxy sends signed
+queries to an endpoint the gem serves; the gem runs them against the models
+you opted in and hands back rows plus the SQL that produced them.
+
+Nothing is queryable until you say so. There is no "expose everything"
+switch, and there is no way to reach a model, a column, or a row you did
+not explicitly declare.
+
+### 1. Declare what vroxy may read
+
+```ruby
+# config/initializers/vroxy.rb
+Vroxy.configure do |config|
+  config.api_key = ENV["VROXY_API_KEY"]
+
+  config.safe_query.secret = ENV["VROXY_QUERY_SECRET"]
+
+  config.safe_query.model "Deal",
+    columns: %w[id account_id status amount currency closed_at created_at],
+    scope:   ->(rel) { rel.where(archived: false) }
+
+  config.safe_query.model "Account",
+    columns: %w[id name plan created_at]
+end
+```
+
+- **`columns:` is the whole world.** A column you leave out cannot be
+  selected, filtered, grouped, ordered or aggregated on. `Deal#notes` above
+  is not merely hidden from output — it cannot appear in a `where` either,
+  so it can't be used to probe for values.
+- **`scope:` runs first, on every query, and cannot be widened.** Caller
+  steps are applied to the relation your lambda returned, and every step is
+  a narrowing one (`where` / `where_not` / `order` / `limit` / `offset` /
+  `group`). There is no `or`, no `unscope`, no `rewhere`. Use it for soft
+  deletes, tenancy, drafts — anything that should never leave the building.
+- **Credential-shaped column names are refused at boot.** Declaring
+  `api_key`, `password_digest`, `session_token` or similar raises
+  `Vroxy::SafeQuery::ConfigurationError` in your initializer rather than
+  failing quietly at query time.
+
+Generate a secret with `ruby -rsecurerandom -e 'puts SecureRandom.hex(32)'`
+and paste it into your vroxy workspace's settings. It must be at least 32
+characters; a shorter one is refused.
+
+### 2. That's it
+
+The gem registers a Rack endpoint at **`/vroxy/query`**
+(`config.safe_query.path` to move it). It stays a 404 passthrough until a
+secret AND at least one model are configured, so installing the gem does
+not open anything.
+
+### Query grammar
+
+vroxy sends JSON. This is the whole language:
+
+```json
+{
+  "model": "Deal",
+  "scope": [
+    { "where": { "status": "won", "created_at_gte": "7.days.ago" } },
+    { "order": "amount desc" },
+    { "limit": 10 }
+  ],
+  "terminal": "pluck",
+  "terminal_args": ["id", "amount"]
+}
+```
+
+| Piece | Values |
+| ----- | ------ |
+| `scope` steps | `where`, `where_not`, `order`, `limit`, `offset`, `group` |
+| terminals | `count`, `sum`, `average`, `minimum`, `maximum`, `pluck`, `first`, `last`, `to_a`, `exists?` |
+| comparisons | `column_gt`, `column_gte`, `column_lt`, `column_lte` (in `where` only) |
+| relative times | `"7.days.ago"`, `"1.hour.from_now"` — seconds through years |
+
+Answers come back as `{"ok": true, "result": …, "sql": "SELECT …"}`, and a
+refusal as `{"ok": false, "error": "…"}` explaining which rule it hit. The
+SQL is returned so a human can audit exactly what ran.
+
+### What makes it read-only
+
+- Every query runs inside a transaction that is **always rolled back**.
+  Even a model callback or a `scope:` lambda that writes leaves nothing
+  behind.
+- There is no write terminal, and none can be reached: `delete_all`,
+  `update_all`, `destroy_all` and `find_by_sql` are simply not in the
+  grammar.
+- **No caller string ever becomes SQL.** Column names are checked against
+  your allowlist and then used as identifiers; values are bound. A column
+  name like `id) OR 1=1 --` is refused, not escaped — the allowlist is a
+  yes-list, not a sanitizer.
+- Results are capped (50 rows by default, 200 max, tunable per model via
+  `max_rows:`), including grouped aggregates. Plain `count` and `sum` are
+  deliberately *not* capped, so totals stay true.
+
+### Authentication
+
+Every request carries three headers and is rejected without them:
+
+| Header | Meaning |
+| ------ | ------- |
+| `X-Vroxy-Timestamp` | Unix seconds; must be within 5 minutes (`timestamp_tolerance`) |
+| `X-Vroxy-Nonce` | 8–128 chars of `[A-Za-z0-9_.-]`, single-use |
+| `X-Vroxy-Signature` | `v1=` + HMAC-SHA256, compared in constant time |
+
+The signature covers `"vroxy:query:v1\n<timestamp>\n<nonce>\n<body>"` over
+the exact request bytes, so a replayed, tampered, stale or unsigned request
+is refused. Requests are also rate limited
+(`max_requests_per_minute`, default 60) and bodies over 16 KB are rejected.
+
+**`safe_query.secret` is deliberately a different secret from
+`identity_secret`.** `identity_secret` signs public identity claims your app
+makes *to* vroxy; this one lets vroxy read *from* your database. Different
+direction, different blast radius, rotate independently — and sharing one
+key across both directions of a protocol is how a signature minted for one
+purpose gets replayed as the other.
+
+### Verifying it yourself
+
+Replay defence is in-process by default. **If you run more than one app
+process**, point it at a shared store so a nonce burned on one worker is
+burned on all of them:
+
+```ruby
+config.safe_query.nonce_store = Rails.cache   # Redis / Memcached
+```
+
+To see the allowlist vroxy sees, POST a signed `{"describe": true}` — it
+returns the models, the columns, and nothing else.
+
 ## Glossary sync
 
 `bin/rails vroxy:sync_glossary` mines `activerecord.models` from your app's
@@ -192,6 +329,22 @@ are skipped. Needs `config.secret_token` (a tenant API token with
 | `secret_token`  | `ENV["VROXY_SECRET_TOKEN"]` | Tenant API token for `vroxy:sync_glossary`. Not the public key. |
 | `glossary_admin_url` | `nil`                    | `->(model_key) { "https://app.example/admin/#{model_key}s/{id}" }`; `{id}` stays literal. |
 | `glossary_extra` | `[]`                         | Entries appended verbatim to the i18n-derived ones. |
+
+### Safe-query settings
+
+All under `config.safe_query`.
+
+| Key             | Default                       | Purpose                                                                 |
+| --------------- | ----------------------------- | ----------------------------------------------------------------------- |
+| `secret`        | `ENV["VROXY_QUERY_SECRET"]`   | HMAC key for query requests. 32+ chars. Not `identity_secret`.          |
+| `model(...)`    | *(none)*                      | Opt a model in: `columns:`, optional `scope:` and `max_rows:`.          |
+| `path`          | `/vroxy/query`                | Where the endpoint is served.                                           |
+| `enabled`       | `true` iff secret + a model   | Kill switch. Forcing `true` cannot open an unconfigured endpoint.       |
+| `default_rows`  | `50`                          | Row limit when the caller doesn't set one.                              |
+| `max_rows`      | `200`                         | Hard ceiling on rows returned (capped at 1000).                         |
+| `timestamp_tolerance` | `300`                   | Seconds of clock skew allowed (max 900).                                |
+| `max_requests_per_minute` | `60`                | Request cap; `0` closes the endpoint.                                   |
+| `nonce_store`   | in-process                    | Set to `Rails.cache` for multi-process replay defence.                  |
 
 ## Manual placement (auto-inject off)
 

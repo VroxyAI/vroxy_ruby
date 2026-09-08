@@ -1,0 +1,102 @@
+[
+  {
+    "name": "canonical query body",
+    "secret": "qs_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "timestamp": "1757280000",
+    "nonce": "nonce-abcdefgh",
+    "body": "{\"model\":\"Deal\",\"terminal\":\"count\"}",
+    "signature": "v1=bcb2489bb1cacf0d876b6fa55e1aa0be99889db65f26fdcc54c2bbe75ead2bb7"
+  },
+  {
+    "name": "body with a scope array",
+    "secret": "qs_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "timestamp": "1757280000",
+    "nonce": "nonce-abcdefgh",
+    "body": "{\"model\":\"Deal\",\"scope\":[{\"where\":{\"status\":\"open\"}}],\"terminal\":\"count\"}",
+    "signature": "v1=415061f88792d08fbce97a077e95681eb2ad31651737bdabe0f6d28a8dc0b0b0"
+  },
+  {
+    "name": "same body, different nonce, different signature",
+    "secret": "qs_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "timestamp": "1757280000",
+    "nonce": "nonce-ijklmnop",
+    "body": "{\"model\":\"Deal\",\"terminal\":\"count\"}",
+    "signature": "v1=4df76233b025dd0165de409ff864ecffed9608246f3007a5f789c75e8e8b5082"
+  },
+  {
+    "name": "same body, different timestamp, different signature",
+    "secret": "qs_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "timestamp": "1757280001",
+    "nonce": "nonce-abcdefgh",
+    "body": "{\"model\":\"Deal\",\"terminal\":\"count\"}",
+    "signature": "v1=94ff70b65c28dfb70283c609e83f24a8dcdbec37745167e20165fe57f1d06047"
+  },
+  {
+    "name": "different secret, different signature",
+    "secret": "qs_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "timestamp": "1757280000",
+    "nonce": "nonce-abcdefgh",
+    "body": "{\"model\":\"Deal\",\"terminal\":\"count\"}",
+    "signature": "v1=4f12b1e62c93c3ecf89228f889e13548916e85de224c101623d868c7252acabd"
+  },
+  {
+    "name": "empty body",
+    "secret": "qs_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "timestamp": "1757280000",
+    "nonce": "nonce-abcdefgh",
+    "body": "",
+    "signature": "v1=c327cb4825a6967a7cd973f171dc96d347f8ae16b6e55ead1e2b1efd6449329f"
+  },
+  {
+    "name": "body carrying newlines and unicode",
+    "secret": "unicodé-秘密-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+    "timestamp": "1757280000",
+    "nonce": "nonce_A.b-C9",
+    "body": "{\n  \"model\": \"Deal\",\n  \"scope\": [{\"where\": {\"name\": \"jürgen\"}}],\n  \"terminal\": \"count\"\n}",
+    "signature": "v1=9707ad5bfd2b974c856d7f0dd720714bb1a627a1b5d5924ccd29ddd36f6a2dd9"
+  },
+  {
+    "name": "describe request",
+    "secret": "qs_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "timestamp": "1893456000",
+    "nonce": "0123456789abcdef",
+    "body": "{\"describe\":true}",
+    "signature": "v1=665d1ab0b54f79da7b21bc87d39003c3ec53f1f2094cb355822f3426abeca207"
+  },
+  {
+    "name": "a nonce carrying the field separator is unsignable",
+    "secret": "qs_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "timestamp": "1757280000",
+    "nonce": "nonce\nabcdefgh",
+    "body": "{\"model\":\"Deal\",\"terminal\":\"count\"}",
+    "rejected": true,
+    "reason": "a newline in the nonce would make the canonical string ambiguous"
+  },
+  {
+    "name": "a nonce with a separator-adjacent character is unsignable",
+    "secret": "qs_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "timestamp": "1757280000",
+    "nonce": "nonce abcdefgh",
+    "body": "{\"model\":\"Deal\",\"terminal\":\"count\"}",
+    "rejected": true,
+    "reason": "the nonce alphabet is [A-Za-z0-9_.-] only"
+  },
+  {
+    "name": "a too-short nonce is unsignable",
+    "secret": "qs_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "timestamp": "1757280000",
+    "nonce": "short",
+    "body": "{\"model\":\"Deal\",\"terminal\":\"count\"}",
+    "rejected": true,
+    "reason": "a nonce under 8 characters is guessable"
+  },
+  {
+    "name": "a non-numeric timestamp is unsignable",
+    "secret": "qs_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "timestamp": "not-a-time",
+    "nonce": "nonce-abcdefgh",
+    "body": "{\"model\":\"Deal\",\"terminal\":\"count\"}",
+    "rejected": true,
+    "reason": "the timestamp must be unix seconds"
+  }
+]

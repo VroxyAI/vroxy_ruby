@@ -72,4 +72,24 @@ Vroxy.configure do |config|
   # `endpoint/admin_ui_inspector.js`; the customer app doesn't
   # ship a byte of picker code.
   # config.admin_roles = %w[admin owner]
+
+  # Safe queries — let the vroxy bot answer questions about YOUR
+  # data ("how many deals closed this week?").  Read-only and
+  # opt-in: nothing is queryable until you declare it here, and an
+  # undeclared column can never be selected, filtered, grouped or
+  # ordered on.  Needs its own secret (NOT identity_secret) — set
+  # the same value in your vroxy workspace settings.  See the
+  # "Safe queries" section of the README.
+  #
+  # config.safe_query.secret = ENV["VROXY_QUERY_SECRET"]
+  #
+  # config.safe_query.model "Deal",
+  #   columns: %w[id account_id status amount closed_at created_at],
+  #   scope:   ->(rel) { rel.where(archived: false) }
+  #
+  # config.safe_query.model "Account", columns: %w[id name plan created_at]
+  #
+  # Running more than one app process?  Point replay defence at a
+  # shared store so a used nonce is used everywhere.
+  # config.safe_query.nonce_store = Rails.cache
 end
