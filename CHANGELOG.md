@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **The Rails demo now checks the identity matrix** instead of listing
+  it in the README and trusting the reader. `matrix_test.rb` drives
+  the app through Rack::Test and asserts against rendered HTML: an
+  anonymous visitor is never identified, a member signs at `user`, an
+  admin at `admin`, the signature is a real HMAC of
+  `external_id|email|level`, the secret never appears in a page, and an
+  excluded path carries no snippet. The Express and Django demos
+  already did this; Rails was the odd one out.
+
 - **CI.** GitHub Actions runs `bundle exec rake test` on Ruby 3.1 (the
   gemspec's floor) and 3.4 on every push and PR. There was none before.
 

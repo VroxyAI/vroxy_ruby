@@ -89,3 +89,19 @@ ultimately validate it.
 
 No `Gemfile.lock` is committed; the gem is a path dependency here and the
 lock would be pure churn.
+
+## The matrix, checked
+
+The table above is what you should see; `matrix_test.rb` asserts it
+against rendered HTML so it cannot quietly stop being true:
+
+```bash
+bundle install
+bundle exec ruby matrix_test.rb
+```
+
+Five rows — anonymous gets the loader and no identify at all, a member
+signs at `user`, an admin at `admin`, the signature is a real
+HMAC-SHA256 of `external_id|email|level` and the secret never reaches
+the page, and an `exclude_paths` route carries no snippet.
+

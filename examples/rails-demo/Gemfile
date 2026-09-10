@@ -8,3 +8,5 @@ gem "puma"
 # vroxy is not published to RubyGems (pre-launch, private).  Point
 # at a checkout, or at the private repo over SSH.
 gem "vroxy", path: "../.."
+gem "rack-test"
+gem "minitest"
