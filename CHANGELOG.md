@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **CI.** GitHub Actions runs `bundle exec rake test` on Ruby 3.1 (the
+  gemspec's floor) and 3.4 on every push and PR. There was none before.
+
 ## 0.9.1 — 2026-09-07
 
 The two things 0.9.0 shipped as unverified: the replay window nobody was told
