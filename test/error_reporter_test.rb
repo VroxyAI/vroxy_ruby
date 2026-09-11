@@ -96,3 +96,62 @@ class ErrorReporterTest < Minitest::Test
     refute Vroxy.report_error(boom)
   end
 end
+
+# An app that IS a vroxy deployment serves the widget from a relative
+# URL, so `endpoint` is "" — but a server-side POST needs somewhere
+# absolute to go. That split is what `ingest_endpoint` exists for.
+class IngestEndpointTest < Minitest::Test
+  def setup
+    Vroxy.reset_configuration!
+    Vroxy::ErrorReporter.transport = nil
+  end
+
+  def teardown
+    Vroxy.reset_configuration!
+    Vroxy::ErrorReporter.transport = nil
+  end
+
+  def test_ingest_endpoint_defaults_to_endpoint
+    Vroxy.configure { |c| c.endpoint = "https://vroxy.ai" }
+
+    assert_equal "https://vroxy.ai", Vroxy.configuration.ingest_endpoint
+  end
+
+  def test_an_empty_endpoint_no_longer_disables_reporting
+    sent = []
+    Vroxy::ErrorReporter.transport = ->(payload, _cfg) { sent << payload }
+    Vroxy.configure do |c|
+      c.api_key         = "pk_test"
+      c.endpoint        = ""
+      c.ingest_endpoint = "https://self.example"
+      c.report_errors   = true
+    end
+
+    assert Vroxy::ErrorReporter.report(RuntimeError.new("boom"))
+    assert_equal 1, sent.size
+  end
+
+  def test_no_ingest_base_anywhere_still_refuses
+    Vroxy.configure do |c|
+      c.api_key       = "pk_test"
+      c.endpoint      = ""
+      c.report_errors = true
+    end
+
+    assert_equal "", Vroxy.configuration.ingest_endpoint.to_s
+    refute Vroxy.configuration.report_errors?,
+           "with nowhere to POST, reporting must read as off rather than silently failing per-exception"
+    refute Vroxy::ErrorReporter.report(RuntimeError.new("boom"))
+  end
+
+  def test_the_post_goes_to_the_ingest_base_not_the_asset_base
+    Vroxy.configure do |c|
+      c.api_key         = "pk_test"
+      c.endpoint        = "https://cdn.example"
+      c.ingest_endpoint = "https://self.example"
+      c.report_errors   = true
+    end
+
+    assert_equal "https://self.example", Vroxy.configuration.ingest_endpoint
+  end
+end

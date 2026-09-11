@@ -16,6 +16,13 @@ module Vroxy
     # Default targets prod; override for staging / self-hosted.
     attr_accessor :endpoint
 
+    # Where error reports POST, when that is not the same place the
+    # widget bundle is served from.  Defaults to `endpoint`, which is
+    # right for every app EXCEPT one that IS a vroxy deployment: those
+    # set `endpoint` to "" so the script tag stays relative and
+    # same-origin, and an empty base silently disabled reporting.
+    attr_writer :ingest_endpoint
+
     # Master kill switch.  `false` short-circuits the middleware
     # AND makes the helper render `""` — so a single flag flip
     # disables the widget without ripping the tag out of layouts.
@@ -72,8 +79,14 @@ module Vroxy
     # stay ignored.
     attr_accessor :error_ignore
 
+    def ingest_endpoint
+      return @ingest_endpoint if @ingest_endpoint.to_s.strip != ""
+      endpoint
+    end
+
     def report_errors?
       return false if api_key.to_s.strip.empty?
+      return false if ingest_endpoint.to_s.strip.empty?
       return @report_errors unless @report_errors.nil?
       Vroxy.production?
     end
@@ -108,6 +121,7 @@ module Vroxy
     def initialize
       @api_key       = ENV["VROXY_API_KEY"]
       @endpoint      = ENV.fetch("VROXY_ENDPOINT", "https://vroxy.ai")
+      @ingest_endpoint = ENV["VROXY_INGEST_ENDPOINT"]
       @auto_inject   = true
       @identify      = nil
       @csp_nonce     = nil

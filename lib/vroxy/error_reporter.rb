@@ -32,7 +32,7 @@ module Vroxy
     def report(exception, context: {}, source: "ruby", handled: true)
       config = Vroxy.configuration
       return false unless config.report_errors?
-      return false if config.endpoint.to_s.strip.empty?
+      return false if config.ingest_endpoint.to_s.strip.empty?
       return false unless exception.respond_to?(:message)
       return false if ignored?(exception, config)
       return false if throttled?
@@ -96,7 +96,7 @@ module Vroxy
 
     DEFAULT_TRANSPORT = lambda do |payload, config|
       Thread.new do
-        uri = URI.parse("#{config.endpoint.chomp('/')}/ingest/errors")
+        uri = URI.parse("#{config.ingest_endpoint.chomp('/')}/ingest/errors")
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = (uri.scheme == "https")
         http.open_timeout = 3

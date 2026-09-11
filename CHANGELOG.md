@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- **Error reporting no longer depends on where the widget bundle is
+  served from.** `Configuration#ingest_endpoint` defaults to
+  `endpoint`, so nothing changes for an app pointing at vroxy.ai — but
+  an app that IS a vroxy deployment sets `endpoint = ""` to keep its
+  script tag relative and same-origin, and that empty string silently
+  disabled every server-side report. The reporter POSTs from the
+  server; an empty asset base is not a URL.
+- The emptiness check moved into `report_errors?`, so "nowhere to
+  POST" reads as OFF rather than as on-but-failing-per-exception.
+  That distinction is what hid the bug.
+- `VROXY_INGEST_ENDPOINT` sets it from the environment.
+- **The Rails demo has an ungated `/boom`** that raises a real
+  unhandled exception, so the report path can be checked without a
+  login wall in the way.
+
 - **The Rails demo now checks the identity matrix** instead of listing
   it in the README and trusting the reader. `matrix_test.rb` drives
   the app through Rack::Test and asserts against rendered HTML: an

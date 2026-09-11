@@ -105,3 +105,25 @@ signs at `user`, an admin at `admin`, the signature is a real
 HMAC-SHA256 of `external_id|email|level` and the secret never reaches
 the page, and an `exclude_paths` route carries no snippet.
 
+
+## Local demo workspace
+
+`vroxy_web` seeds a ready-made workspace for these examples — chat, tools
+across all three access tiers, the feedback loop, and error reporting,
+with every demo port already allowlisted:
+
+```bash
+cd ../vroxy_web && bin/rails db:seed:examples_tenant
+```
+
+It prints the two values below; they are fixed, dev-only, and safe to
+paste here:
+
+```
+VROXY_API_KEY=vroxyexampleslocaldemo01
+VROXY_IDENTITY_SECRET=vroxy-examples-identity-secret-local-dev-only012
+VROXY_ENDPOINT=http://localhost:3000
+```
+
+Then visit `/boom` to raise a real 500 and confirm it lands in the
+workspace under Errors.
