@@ -33,6 +33,10 @@ module Vroxy
       config = Vroxy.configuration
       return false unless config.report_errors?
       return false if config.ingest_endpoint.to_s.strip.empty?
+      # Ingestion is bearer-only: the public api_key used to be enough,
+      # which meant anyone reading it out of the page source could forge
+      # backend exceptions into the operator's error list.
+      return false if config.secret_token.to_s.strip.empty?
       return false unless exception.respond_to?(:message)
       return false if ignored?(exception, config)
       return false if throttled?
@@ -104,7 +108,7 @@ module Vroxy
 
         request = Net::HTTP::Post.new(uri)
         request["Content-Type"] = "application/json"
-        request["X-Vroxy-Tenant"] = config.api_key.to_s
+        request["Authorization"] = "Bearer #{config.secret_token}"
         request.body = JSON.generate(payload)
 
         http.request(request)

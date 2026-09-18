@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **BREAKING: error reporting now authenticates with `secret_token`,
+  not the public `api_key`.** `/ingest/errors` used to take the public
+  key so browsers could report too — but that key is in the page source
+  of every site running the widget, and `source` is caller-supplied, so
+  anyone could forge a `source: "ruby"` exception into the operator's
+  error list looking exactly like a real backend failure. Set
+  `config.secret_token` (a tenant API token with `tenant:write`, or
+  `VROXY_SECRET_TOKEN`); **without one, `report_errors` sends nothing**
+  rather than falling back to the public key.
+
 - **Error reporting no longer depends on where the widget bundle is
   served from.** `Configuration#ingest_endpoint` defaults to
   `endpoint`, so nothing changes for an app pointing at vroxy.ai — but

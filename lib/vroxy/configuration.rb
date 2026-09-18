@@ -65,13 +65,15 @@ module Vroxy
     attr_accessor :admin_roles
 
     # Tenant-owned vroxy API token (tenant:write) for
-    # server-to-server calls — the glossary sync rake task.  NOT
-    # the public api_key.  Reads ENV VROXY_SECRET_TOKEN.
+    # server-to-server calls — the glossary sync rake task and error
+    # reporting.  NOT the public api_key.  Reads ENV
+    # VROXY_SECRET_TOKEN.
     attr_accessor :secret_token
 
-    # Exception reporting to vroxy (/ingest/errors, authenticated
-    # by the public api_key).  Tri-state: nil (default) auto-enables
-    # in production when an api_key is present; true/false force.
+    # Exception reporting to vroxy (/ingest/errors, authenticated by
+    # the secret_token).  Tri-state: nil (default) auto-enables in
+    # production when an api_key is present; true/false force.  With
+    # no secret_token nothing is sent, whatever this says.
     attr_writer :report_errors
 
     # Exception class names never reported.  Matched against the

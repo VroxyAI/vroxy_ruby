@@ -10,6 +10,7 @@ class ErrorReporterTest < Minitest::Test
     Vroxy::ErrorReporter.reset_throttle!
     Vroxy.configure do |c|
       c.api_key       = "pk_1"
+      c.secret_token  = "sk_1"
       c.endpoint      = "https://vroxy.test"
       c.report_errors = true
     end
@@ -122,6 +123,7 @@ class IngestEndpointTest < Minitest::Test
     Vroxy::ErrorReporter.transport = ->(payload, _cfg) { sent << payload }
     Vroxy.configure do |c|
       c.api_key         = "pk_test"
+      c.secret_token    = "sk_test"
       c.endpoint        = ""
       c.ingest_endpoint = "https://self.example"
       c.report_errors   = true
@@ -129,6 +131,23 @@ class IngestEndpointTest < Minitest::Test
 
     assert Vroxy::ErrorReporter.report(RuntimeError.new("boom"))
     assert_equal 1, sent.size
+  end
+
+  # Ingestion is bearer-only. The public api_key sits in the page
+  # source of every embedding site, so accepting it meant anyone could
+  # forge "ruby" backend exceptions into the operator's error list.
+  def test_without_a_secret_token_nothing_is_sent
+    sent = []
+    Vroxy::ErrorReporter.transport = ->(payload, _cfg) { sent << payload }
+    Vroxy.configure do |c|
+      c.api_key         = "pk_test"
+      c.secret_token    = nil
+      c.ingest_endpoint = "https://self.example"
+      c.report_errors   = true
+    end
+
+    refute Vroxy::ErrorReporter.report(RuntimeError.new("boom"))
+    assert_empty sent, "the public key alone must never ship an error report"
   end
 
   def test_no_ingest_base_anywhere_still_refuses
