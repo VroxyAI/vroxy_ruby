@@ -1,0 +1,241 @@
+[
+  {
+    "name": "anonymous",
+    "config": {
+      "api_key": "pk_test123"
+    },
+    "identity": null,
+    "payload": null,
+    "inspector": false
+  },
+  {
+    "name": "unsigned_member",
+    "config": {
+      "api_key": "pk_1"
+    },
+    "identity": {
+      "external_id": "7",
+      "email": "u@ex.com",
+      "name": "User Seven",
+      "role": "member"
+    },
+    "payload": {
+      "email": "u@ex.com",
+      "name": "User Seven",
+      "external_id": "7",
+      "meta": {
+        "role": "member"
+      },
+      "role": "member"
+    },
+    "inspector": false
+  },
+  {
+    "name": "unsigned_admin_gets_no_inspector",
+    "config": {
+      "api_key": "pk_1"
+    },
+    "identity": {
+      "external_id": "7",
+      "email": "u@ex.com",
+      "name": "User Seven",
+      "role": "admin"
+    },
+    "payload": {
+      "email": "u@ex.com",
+      "name": "User Seven",
+      "external_id": "7",
+      "meta": {
+        "role": "admin"
+      },
+      "role": "admin"
+    },
+    "inspector": false
+  },
+  {
+    "name": "signed_member",
+    "config": {
+      "api_key": "pk_1",
+      "identity_secret": "is_sekrit"
+    },
+    "identity": {
+      "external_id": "7",
+      "email": "u@ex.com",
+      "name": "User Seven",
+      "role": "member"
+    },
+    "payload": {
+      "email": "u@ex.com",
+      "name": "User Seven",
+      "external_id": "7",
+      "meta": {
+        "role": "member"
+      },
+      "role": "member",
+      "level": "user",
+      "signature": "a1eb72861f719405b294c5a3fc4f67961b5e5c34593c8557ce6203092bcb5f6b"
+    },
+    "inspector": false
+  },
+  {
+    "name": "signed_admin",
+    "config": {
+      "api_key": "pk_1",
+      "identity_secret": "is_sekrit"
+    },
+    "identity": {
+      "external_id": "7",
+      "email": "u@ex.com",
+      "name": "User Seven",
+      "role": "admin"
+    },
+    "payload": {
+      "email": "u@ex.com",
+      "name": "User Seven",
+      "external_id": "7",
+      "meta": {
+        "role": "admin"
+      },
+      "role": "admin",
+      "level": "admin",
+      "signature": "002e539021e63e91e18b6dc02b4f6ddaebd359001893b29162bbae96b8545028"
+    },
+    "inspector": true
+  },
+  {
+    "name": "signed_custom_admin_role",
+    "config": {
+      "api_key": "pk_1",
+      "identity_secret": "is_sekrit",
+      "admin_roles": [
+        "manager"
+      ]
+    },
+    "identity": {
+      "external_id": "42",
+      "email": "m@ex.com",
+      "role": "manager",
+      "plan": "pro"
+    },
+    "payload": {
+      "email": "m@ex.com",
+      "external_id": "42",
+      "meta": {
+        "role": "manager",
+        "plan": "pro"
+      },
+      "role": "manager",
+      "level": "admin",
+      "signature": "d7ddf715ff3c4903b9458d0166c063d99b327846e323b05360764f959ad21cca"
+    },
+    "inspector": true
+  },
+  {
+    "name": "admin_role_downgraded_by_explicit_level",
+    "config": {
+      "api_key": "pk_1",
+      "identity_secret": "is_sekrit"
+    },
+    "identity": {
+      "external_id": "7",
+      "email": "u@ex.com",
+      "role": "admin",
+      "level": "user"
+    },
+    "payload": {
+      "email": "u@ex.com",
+      "external_id": "7",
+      "meta": {
+        "role": "admin"
+      },
+      "role": "admin",
+      "level": "user",
+      "signature": "a1eb72861f719405b294c5a3fc4f67961b5e5c34593c8557ce6203092bcb5f6b"
+    },
+    "inspector": false
+  },
+  {
+    "name": "explicit_admin_level_on_a_non_admin_role",
+    "config": {
+      "api_key": "pk_1",
+      "identity_secret": "is_sekrit"
+    },
+    "identity": {
+      "external_id": "7",
+      "email": "u@ex.com",
+      "role": "member",
+      "level": "admin"
+    },
+    "payload": {
+      "email": "u@ex.com",
+      "external_id": "7",
+      "meta": {
+        "role": "member"
+      },
+      "role": "member",
+      "level": "admin",
+      "signature": "002e539021e63e91e18b6dc02b4f6ddaebd359001893b29162bbae96b8545028"
+    },
+    "inspector": false
+  },
+  {
+    "name": "sugar_keys_land_in_meta",
+    "config": {
+      "api_key": "pk_1"
+    },
+    "identity": {
+      "email": "x@y.co",
+      "plan": "pro",
+      "signup_year": 2026
+    },
+    "payload": {
+      "email": "x@y.co",
+      "meta": {
+        "plan": "pro",
+        "signup_year": 2026
+      }
+    },
+    "inspector": false
+  },
+  {
+    "name": "explicit_meta_wins_over_sugar",
+    "config": {
+      "api_key": "pk_1"
+    },
+    "identity": {
+      "email": "x@y.co",
+      "plan": "pro",
+      "meta": {
+        "plan": "enterprise"
+      }
+    },
+    "payload": {
+      "email": "x@y.co",
+      "meta": {
+        "plan": "enterprise"
+      }
+    },
+    "inspector": false
+  },
+  {
+    "name": "unicode_and_escapes",
+    "config": {
+      "api_key": "pk_1"
+    },
+    "identity": {
+      "external_id": "ü42",
+      "email": "jürgen@exämple.de",
+      "name": "Jürgen <O'Brien> & Co",
+      "note": "quote\"backslash\\newline\n"
+    },
+    "payload": {
+      "email": "jürgen@exämple.de",
+      "name": "Jürgen <O'Brien> & Co",
+      "external_id": "ü42",
+      "meta": {
+        "note": "quote\"backslash\\newline\n"
+      }
+    },
+    "inspector": false
+  }
+]
