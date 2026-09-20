@@ -45,7 +45,7 @@ module Vroxy
     #
     #   1. Widget loader           (always, when enabled)
     #   2. vroxy.identify() call (when identity resolves to non-empty)
-    #   3. Admin inspector loader  (when identity role ∈ config.admin_roles)
+    #   3. Admin inspector loader  (when the identity is a SIGNED admin)
     #
     # A support widget must never be able to 500 a customer's page,
     # so in production a failure here degrades to no snippet.  In
@@ -57,9 +57,10 @@ module Vroxy
       return "" if config.api_key.to_s.strip.empty?
 
       identity = Identity.resolve(controller)
+      payload  = identity && !identity.empty? ? identity_payload(identity, config) : nil
       loader   = loader_tag(config, controller)
-      ident    = identify_tag(identity, config, controller)
-      admin    = admin_inspector_tag(identity, config, controller)
+      ident    = identify_tag(identity, config, controller, payload)
+      admin    = admin_inspector_tag(identity, config, controller, payload)
 
       "#{loader}#{ident}#{admin}"
     rescue StandardError => e
@@ -87,11 +88,11 @@ module Vroxy
     # bundle replaces the function and drains the queue.  Either
     # ordering (loader before/after this tag) works — the queue
     # is the API contract.
-    def identify_tag(identity, config, controller)
+    def identify_tag(identity, config, controller, resolved_payload = nil)
       return "" if identity.nil? || identity.empty?
 
       nonce_attr = build_nonce_attr(config, controller)
-      payload    = script_json(identity_payload(identity, config))
+      payload    = script_json(resolved_payload || identity_payload(identity, config))
 
       # `window.vroxy = window.vroxy || function(){ (window.vroxy.q = window.vroxy.q || []).push(arguments) }`
       # mirrors the shim in Widget::BootController#bootstrap_source_for.
@@ -149,8 +150,18 @@ module Vroxy
       top
     end
 
+    def signed_admin?(payload)
+      payload.is_a?(Hash) &&
+        payload[:level].to_s == "admin" &&
+        !payload[:signature].to_s.strip.empty?
+    end
+
     # Emitted only when the identified user's `role` is in
-    # `config.admin_roles`.  Dynamic-imports the inspector bundle
+    # `config.admin_roles` AND the payload carries a signed `admin`
+    # level — the feedback endpoint refuses anything less, so an
+    # unsigned admin would get a button that can only ever 403.
+    #
+    # Dynamic-imports the inspector bundle
     # from `endpoint/admin_ui_inspector.js` (a stable public URL
     # served by vroxy.ai) and calls
     # `window.VroxyInspector.init(...)` with server-known
@@ -162,11 +173,12 @@ module Vroxy
     # `import()` returns a Promise so we chain `.then()` to fire
     # init once the module has finished evaluating (which is when
     # `VroxyInspector` is guaranteed to be on `window`).
-    def admin_inspector_tag(identity, config, controller)
+    def admin_inspector_tag(identity, config, controller, resolved_payload = nil)
       return "" if identity.nil?
       role = identity[:role] || identity.dig(:meta, :role) || identity.dig(:meta, "role")
       return "" if role.nil?
       return "" unless config.admin_role?(role)
+      return "" unless signed_admin?(resolved_payload || identity_payload(identity, config))
 
       init_args  = script_json(inspector_init_args(config, controller))
       script_url = script_json(("#{config.endpoint.chomp('/')}/admin_ui_inspector.js"))

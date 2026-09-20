@@ -91,7 +91,11 @@ class AdminRenderTrackerTest < Minitest::Test
   end
 
   def test_gate_agrees_with_the_snippet_and_the_signed_level
-    Vroxy.configure { |c| c.api_key = "pk_1"; c.admin_roles = [ :manager ] }
+    Vroxy.configure do |c|
+      c.api_key         = "pk_1"
+      c.identity_secret = "is_sekrit"
+      c.admin_roles     = [ :manager ]
+    end
     identity = { role: "manager", email: "m@ex.com", external_id: "3" }
     stub_identity(identity)
 

@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- **The admin inspector is only served to a SIGNED admin.** The
+  inspector bundle used to be emitted on `config.admin_role?(role)`
+  alone — the unsigned role string off the identity hash, decided
+  separately from the `identify` payload's level/signature. With no
+  `identity_secret` configured, an app could hand the inspector to an
+  "admin" whose payload carried no level at all, and vroxy's feedback
+  endpoint now refuses that visitor: a button that can only ever 403.
+  `Snippet.render` resolves the payload ONCE and both tags read it, so
+  the two decisions can't disagree, and `admin_inspector_tag` requires
+  a signed `admin` level on top of the role check. No
+  `identity_secret`, no inspector — the JavaScript never reaches the
+  page rather than loading and failing.
+
+- Fixed an order-dependent test failure: `ErrorReporter`'s throttle is
+  a process-wide counter, so the 100-report burst in
+  `ErrorReporterTest` left it over `MAX_PER_MINUTE` for whichever class
+  minitest shuffled in next.
+
 - **BREAKING: error reporting now authenticates with `secret_token`,
   not the public `api_key`.** `/ingest/errors` used to take the public
   key so browsers could report too — but that key is in the page source

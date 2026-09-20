@@ -18,6 +18,7 @@ class ErrorReporterTest < Minitest::Test
 
   def teardown
     Vroxy::ErrorReporter.transport = nil
+    Vroxy::ErrorReporter.reset_throttle!
     super
   end
 
@@ -102,14 +103,19 @@ end
 # URL, so `endpoint` is "" — but a server-side POST needs somewhere
 # absolute to go. That split is what `ingest_endpoint` exists for.
 class IngestEndpointTest < Minitest::Test
+  # The throttle is a process-wide counter, so the 100-report burst
+  # in ErrorReporterTest leaves it over MAX_PER_MINUTE for whatever
+  # class minitest shuffles in next.
   def setup
     Vroxy.reset_configuration!
     Vroxy::ErrorReporter.transport = nil
+    Vroxy::ErrorReporter.reset_throttle!
   end
 
   def teardown
     Vroxy.reset_configuration!
     Vroxy::ErrorReporter.transport = nil
+    Vroxy::ErrorReporter.reset_throttle!
   end
 
   def test_ingest_endpoint_defaults_to_endpoint

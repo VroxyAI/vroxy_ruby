@@ -75,7 +75,7 @@ class SnippetEscapingTest < Minitest::Test
   end
 
   def test_inspector_init_args_are_escaped
-    Vroxy.configure { |c| c.api_key = "pk_1" }
+    Vroxy.configure { |c| c.api_key = "pk_1"; c.identity_secret = "is_sekrit" }
     controller = FakeController.new(FakeUser.new(1, "a@b.co", "Ada", "admin"))
     controller.instance_variable_set(:@_vroxy_rendered_partials,
                                      [ { path: "app/views/#{BREAKOUT}.erb", ms: 1.0 } ])

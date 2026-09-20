@@ -104,7 +104,7 @@ class SnippetTest < Minitest::Test
   end
 
   def test_admin_inspector_tag_emitted_for_admin_role
-    Vroxy.configure { |c| c.api_key = "pk_1" }
+    Vroxy.configure { |c| c.api_key = "pk_1"; c.identity_secret = "is_sekrit" }
     user = Struct.new(:id, :email, :full_name, :role)
       .new(7, "u@ex.com", "User Seven", "admin")
 
@@ -132,8 +132,9 @@ class SnippetTest < Minitest::Test
 
   def test_admin_roles_are_configurable
     Vroxy.configure do |c|
-      c.api_key     = "pk_1"
-      c.admin_roles = %w[manager]
+      c.api_key         = "pk_1"
+      c.identity_secret = "is_sekrit"
+      c.admin_roles     = %w[manager]
     end
     user = Struct.new(:id, :email, :role).new(1, "x@y.co", "manager")
     html = Vroxy::Snippet.render(InspectorController.new(user))
@@ -200,6 +201,7 @@ class SnippetTest < Minitest::Test
   # never boots — the inline tags being nonced doesn't help.
   def test_csp_nonce_is_applied_to_the_loader_tag_too
     Vroxy.configure do |c|
+      c.identity_secret = "is_sekrit"
       c.api_key   = "pk_1"
       c.csp_nonce = ->(_ctrl) { "abc123" }
     end
@@ -212,11 +214,33 @@ class SnippetTest < Minitest::Test
   end
 
   def test_rendered_partials_forwarded_to_init_args
-    Vroxy.configure { |c| c.api_key = "pk_1" }
+    Vroxy.configure { |c| c.api_key = "pk_1"; c.identity_secret = "is_sekrit" }
     user = Struct.new(:id, :email, :role).new(1, "x@y.co", "admin")
     partials = [{ path: "app/views/posts/_row.html.erb", ms: 1.2 }]
     html = Vroxy::Snippet.render(InspectorController.new(user, partials))
 
     assert_includes html, "\"rendered_partials\":[{\"path\":\"app/views/posts/_row.html.erb\",\"ms\":1.2}]"
+  end
+
+  def test_admin_inspector_is_withheld_when_the_identity_is_unsigned
+    Vroxy.configure { |c| c.api_key = "pk_1" }
+    user = Struct.new(:id, :email, :full_name, :role)
+      .new(7, "u@ex.com", "User Seven", "admin")
+
+    html = Vroxy::Snippet.render(InspectorController.new(user))
+
+    refute_includes html, "admin_ui_inspector.js"
+    refute_includes html, "VroxyInspector.init("
+    assert_includes html, "identify", "identify itself still runs"
+  end
+
+  def test_a_signed_non_admin_gets_no_inspector_either
+    Vroxy.configure { |c| c.api_key = "pk_1"; c.identity_secret = "is_sekrit" }
+    user = Struct.new(:id, :email, :full_name, :role)
+      .new(7, "u@ex.com", "User Seven", "basic")
+
+    html = Vroxy::Snippet.render(InspectorController.new(user))
+
+    refute_includes html, "admin_ui_inspector.js"
   end
 end
