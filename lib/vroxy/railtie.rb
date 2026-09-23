@@ -42,6 +42,7 @@ module Vroxy
 
     initializer "vroxy.safe_query" do |app|
       app.middleware.use Vroxy::SafeQuery::Middleware
+      app.middleware.use Vroxy::Tools::Middleware
     end
 
     # Subscribe AFTER the host's initializers ran (that's where

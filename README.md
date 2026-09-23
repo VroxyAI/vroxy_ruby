@@ -342,6 +342,66 @@ differs from its key becomes an entry (`{ term: "product", aliases:
 are skipped. Needs `config.secret_token` (a tenant API token with
 `tenant:read` + `tenant:write`), NOT the public `api_key`.
 
+## Local tools (invent bot tools in the host app)
+
+Declare tools in the initializer. Host tools run Ruby in your app when
+the bot calls them; link/fetch tools sync URL templates into the
+workspace the same way the Tools UI does.
+
+```ruby
+Vroxy.configure do |config|
+  config.secret_token = ENV["VROXY_SECRET_TOKEN"]
+  config.safe_query.secret = ENV["VROXY_QUERY_SECRET"] # signs /vroxy/tools too
+
+  config.tool "lookup_order" do |t|
+    t.description "Look up an order by number for the signed-in customer"
+    t.access :user
+    t.param "order_id", "The order number", required: true
+    t.handle do |args|
+      order = Order.find_by!(number: args["order_id"])
+      { number: order.number, status: order.status, total: order.total_cents }
+    end
+  end
+
+  config.tool "search_help" do |t|
+    t.kind :link
+    t.description "Open a help-center search"
+    t.url_template "https://help.example.com/search?q={query}"
+    t.param "query", "Search terms", required: true
+  end
+end
+```
+
+Then push them:
+
+```bash
+bin/rails vroxy:sync_tools
+```
+
+Host tools need the workspace **Host query** connection pointed at your
+app (same `safe_query.secret`). vroxy POSTs to `/vroxy/tools/<name>` with
+the same signed headers as `/vroxy/query`.
+
+## Local docs (invent knowledge-base articles in the host app)
+
+```ruby
+Vroxy.configure do |config|
+  config.doc "Refunds", folder: "billing", slug: "refunds" do
+    <<~MD
+      Refunds are issued within 30 days of purchase.
+    MD
+  end
+end
+```
+
+```bash
+bin/rails vroxy:sync_docs
+# or everything: bin/rails vroxy:sync
+```
+
+Docs are upserted by a `seeded:gem:<slug>` notes marker so re-syncing
+updates the body without duplicating rows.
+
 ## Configuration reference
 
 | Key             | Default                       | Purpose                                                                 |

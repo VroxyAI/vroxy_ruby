@@ -120,6 +120,29 @@ module Vroxy
       @safe_query ||= SafeQuery::Config.new
     end
 
+    def tools
+      @tools ||= Tools::Registry.new
+    end
+
+    def docs
+      @docs ||= Docs::Registry.new
+    end
+
+    def tool(name, &block)
+      definition = Tools::Definition.new(name)
+      block.call(definition) if block
+      tools.register(definition)
+    end
+
+    def doc(title, slug: nil, folder: "", position: 0, status: :published, &block)
+      definition = Docs::Definition.new(title, slug: slug, folder: folder, position: position, status: status)
+      if block
+        body = block.arity.zero? ? block.call : block.call(definition)
+        definition.body(body) if body && definition.body_md.nil?
+      end
+      docs.register(definition)
+    end
+
     def initialize
       @api_key       = ENV["VROXY_API_KEY"]
       @endpoint      = ENV.fetch("VROXY_ENDPOINT", "https://vroxy.ai")

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.0
+
+- **Declare tools and docs in the host app.** `config.tool` /
+  `config.doc` in the initializer, then `bin/rails vroxy:sync_tools`
+  / `vroxy:sync_docs` (or `vroxy:sync`) push them into the workspace.
+  Host tools run Ruby in your app at signed `POST /vroxy/tools/:name`
+  (same secret as safe_query); link/fetch tools sync their URL
+  templates the usual way. Docs upsert by a `seeded:gem:<slug>`
+  notes marker and keep their folder path.
+
 ## Unreleased
 
 - **The admin inspector is only served to a SIGNED admin.** The

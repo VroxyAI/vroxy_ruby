@@ -45,29 +45,19 @@ whose workspace **origin allowlist** includes `http://localhost:3000`.
 
 ## About custom bot tools
 
-**The gem cannot define bot tools.** Tools (`link` and `fetch` kinds, with
-`public` / `user` / `admin` access levels) are defined in the vroxy
-workspace UI under **Tools**, not from host-app code, and there is no API
-for creating them.
+Declare them in the initializer (`config.tool`) and run
+`bin/rails vroxy:sync_tools`. Host tools execute Ruby in this app at
+signed `POST /vroxy/tools/:name`; link/fetch tools sync their URL
+templates into the workspace. Access levels still need
+`config.identity_secret` so the widget can prove the visitor is a
+signed-in user or admin.
 
-What the gem contributes is the half a tool can't work without: the
-**signed access level**. `config.identity_secret` is what turns
-"this visitor says they're an admin" into a claim vroxy will trust, and
-that is what unlocks a tool whose access is `user` or `admin`. Without it,
-identify still personalizes the conversation but every visitor stays at
-`public` tool access.
+Demo path for a gated host tool:
 
-So the demo path for a gated tool is:
-
-1. Create the tool in your workspace with access `admin`.
-2. Set `VROXY_IDENTITY_SECRET` here and load `/?as=admin`.
-3. Ask the widget something that needs the tool — it is offered to this
-   visitor and refused for `/?as=member`.
-
-The other server-to-server thing the gem does is
-`bin/rails vroxy:sync_glossary`, which teaches the bot your app's nouns
-from `activerecord.models` i18n. It needs `config.secret_token`, so it is
-not wired into this demo.
+1. Declare the tool with `t.access :admin` and a `t.handle { … }` block.
+2. Set `VROXY_IDENTITY_SECRET` + `VROXY_QUERY_SECRET`, sync tools, and
+   point the workspace Host query connection at this app.
+3. Load `/?as=admin` and ask the widget something that needs the tool.
 
 ## What has been verified
 
