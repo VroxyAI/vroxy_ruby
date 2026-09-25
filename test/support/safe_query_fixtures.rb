@@ -50,6 +50,7 @@ module SafeQueryFixtures
       t.integer  :small_amount, limit: 4
       t.boolean  :archived, default: false
       t.string   :secret_note
+      t.string   :property_address
       t.datetime :created_at
     end
 
@@ -100,16 +101,21 @@ module SafeQueryFixtures
 
     rows = []
     rows << { id: 1, account_id: 1, status: "won",  amount: 500, archived: false,
-              secret_note: "internal", created_at: now - 3_600 }
+              secret_note: "internal", property_address: "123 Main St",
+              created_at: now - 3_600 }
     rows << { id: 2, account_id: 1, status: "open", amount: 250, archived: false,
-              secret_note: "internal", created_at: now - 7_200 }
+              secret_note: "internal", property_address: "123 Main St",
+              created_at: now - 7_200 }
     rows << { id: 3, account_id: 2, status: "open", amount: 100, archived: false,
-              secret_note: "internal", created_at: now - (86_400 * 30) }
+              secret_note: "internal", property_address: "456 Oak Ave",
+              created_at: now - (86_400 * 30) }
     rows << { id: 4, account_id: 2, status: "lost", amount: 999, archived: true,
-              secret_note: "hidden", created_at: now - 60 }
+              secret_note: "hidden", property_address: "123 Main St",
+              created_at: now - 60 }
     (5..40).each do |i|
       rows << { id: i, account_id: 1, status: "open", amount: i, archived: false,
-                secret_note: "internal", created_at: now - (i * 60) }
+                secret_note: "internal", property_address: "789 Pine Rd",
+                created_at: now - (i * 60) }
     end
     Deal.insert_all!(rows)
 
@@ -118,7 +124,7 @@ module SafeQueryFixtures
 
   def declare_default_allowlist!(config)
     config.model "Deal",
-                 columns: %w[id account_id status amount archived created_at],
+                 columns: %w[id account_id status amount archived property_address created_at],
                  scope: ->(rel) { rel.where(archived: false) }
     config.model "Account", columns: %w[id name plan created_at]
   end

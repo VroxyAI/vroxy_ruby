@@ -80,6 +80,23 @@ ultimately validate it.
 No `Gemfile.lock` is committed; the gem is a path dependency here and the
 lock would be pure churn.
 
+## Safe query (business data)
+
+The gem can answer factual questions against **your** models —
+"how many deals on 123 Main St?" — without vroxy ever holding your
+DB credentials. Declare an allowlist, set `VROXY_QUERY_SECRET`, and
+point the workspace Host query connection at this app. Scenario
+tests that pin those question shapes live in the gem:
+
+```bash
+cd ../..   # vroxy_ruby root
+bundle exec ruby -Itest test/support_question_scenarios_test.rb
+```
+
+On vroxy itself, dogfood "how many support chats today?" is
+`rails_query` against `SupportChat` (verified admin only) — see
+`vroxy_web/test/services/bot/support_question_scenarios_test.rb`.
+
 ## The matrix, checked
 
 The table above is what you should see; `matrix_test.rb` asserts it

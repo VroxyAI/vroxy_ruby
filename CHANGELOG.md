@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.1
+
+- **Support-question scenario tests** for the safe_query path: "how many
+  deals on 123 Main St?" and "deals won this week" run through both the
+  runner and the signed `/vroxy/query` middleware. Deal fixtures now
+  expose an allowlisted `property_address`. Rails demo initializer
+  documents the Host query wiring.
+
 ## 0.11.0
 
 - **Declare tools and docs in the host app.** `config.tool` /

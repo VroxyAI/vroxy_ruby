@@ -28,4 +28,14 @@ Vroxy.configure do |config|
   # Ships unhandled exceptions to the workspace Errors page.  nil
   # (the default) would arm this in production only.
   config.report_errors = false
+
+  # Safe query — the bot answers "how many deals on 123 Main St?"
+  # against YOUR database. Nothing is queryable until declared.
+  # Set VROXY_QUERY_SECRET, paste the same secret into the workspace
+  # Host query page, then ask as a verified admin.
+  #
+  # config.safe_query.secret = ENV["VROXY_QUERY_SECRET"]
+  # config.safe_query.model "Deal",
+  #   columns: %w[id status amount property_address created_at],
+  #   scope:   ->(rel) { rel.where(archived: false) }
 end
