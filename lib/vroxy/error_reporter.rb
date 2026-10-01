@@ -52,8 +52,8 @@ module Vroxy
       {
         source: source,
         error_class: exception.class.name,
-        message: exception.message.to_s[0, MAX_MESSAGE_CHARS],
-        backtrace: Array(exception.backtrace).first(MAX_BACKTRACE_LINES),
+        message: utf8(exception.message)[0, MAX_MESSAGE_CHARS],
+        backtrace: Array(exception.backtrace).first(MAX_BACKTRACE_LINES).map { |line| utf8(line) },
         environment: detect_environment,
         occurred_at: Time.now.utc.iso8601,
         context: normalize_context(context).merge("handled" => handled)
@@ -87,10 +87,17 @@ module Vroxy
     def normalize_context(context)
       return {} unless context.is_a?(Hash)
       context.each_with_object({}) do |(k, v), out|
-        out[k.to_s] = v.is_a?(Hash) || v.is_a?(Array) ? v : v.to_s
+        out[utf8(k)] = v.is_a?(Hash) || v.is_a?(Array) ? v : utf8(v)
       end
     rescue StandardError
       {}
+    end
+
+    def utf8(value)
+      text = value.to_s
+      text = text.dup.force_encoding(Encoding::UTF_8) if text.encoding == Encoding::BINARY
+      text = text.encode(Encoding::UTF_8, invalid: :replace, undef: :replace) unless text.encoding == Encoding::UTF_8
+      text.valid_encoding? ? text : text.scrub
     end
 
     def detect_environment

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.2
+
+- **Invalid UTF-8 in a reported error no longer breaks the report.** The
+  reporter scrubs the message, backtrace lines and context to valid
+  UTF-8 before sending, and the middleware reads a response body as
+  binary and re-tags it UTF-8 — a page that isn't valid UTF-8 now passes
+  through byte for byte instead of being corrupted (the same rule the
+  Node, Python and WordPress SDKs apply).
+- New snippet security tests pinning the secret/token-never-reach-the-page
+  and inspector-gate matrix.
+
 ## 0.11.1
 
 - **Support-question scenario tests** for the safe_query path: "how many

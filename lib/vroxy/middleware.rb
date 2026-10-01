@@ -110,9 +110,9 @@ module Vroxy
     end
 
     def read_body(body)
-      buffer = +""
-      body.each { |part| buffer << part.to_s }
-      buffer
+      buffer = String.new(encoding: Encoding::BINARY)
+      body.each { |part| buffer << part.to_s.b }
+      buffer.force_encoding(Encoding::UTF_8)
     rescue StandardError
       nil
     end
