@@ -24,10 +24,10 @@ Then set your key (from your vroxy workspace → **Embed**):
 
 ```bash
 # .env / your secret manager
-VROXY_API_KEY=your_tenant_public_key
+VROXY_PUBLIC_KEY=your_tenant_public_key
 ```
 
-The public key is a 24-character alphanumeric string. It is not secret — it ships to the browser in the widget URL, which is exactly what the snippet does with it.
+The public key is a 24-character alphanumeric string. It is not secret — it ships to the browser in the widget URL, which is exactly what the snippet does with it. (`VROXY_API_KEY` was the old name and still works; it was always the public key, never the secret API token.)
 
 That's it. Every `text/html` response now carries the loader script + an `identify()` call for the current user.
 
@@ -185,7 +185,7 @@ not explicitly declare.
 ```ruby
 # config/initializers/vroxy.rb
 Vroxy.configure do |config|
-  config.api_key = ENV["VROXY_API_KEY"]
+  config.api_key = ENV["VROXY_PUBLIC_KEY"] || ENV["VROXY_API_KEY"]
 
   config.safe_query.secret = ENV["VROXY_QUERY_SECRET"]
 
@@ -406,7 +406,7 @@ updates the body without duplicating rows.
 
 | Key             | Default                       | Purpose                                                                 |
 | --------------- | ----------------------------- | ----------------------------------------------------------------------- |
-| `api_key`       | `ENV["VROXY_API_KEY"]`      | Tenant public key (24 chars).                                           |
+| `api_key`       | `ENV["VROXY_PUBLIC_KEY"]` or `ENV["VROXY_API_KEY"]` | Tenant public key (24 chars). |
 | `endpoint`      | `ENV["VROXY_ENDPOINT"]` or `https://vroxy.ai` | Base URL of the vroxy deployment.                     |
 | `enabled`       | `true` iff `api_key` present  | Master kill switch.                                                     |
 | `auto_inject`   | `true`                        | Middleware appends the snippet before `</body>` on `text/html` responses. |

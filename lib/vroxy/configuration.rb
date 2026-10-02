@@ -10,6 +10,10 @@ module Vroxy
     # their vroxy workspace settings page; safe to ship to the
     # browser (that's literally what happens — the widget URL
     # carries it as a query param).  Required.
+    #
+    # Read from `VROXY_PUBLIC_KEY` (preferred) or the legacy
+    # `VROXY_API_KEY`.  It is the PUBLIC key, never the secret API
+    # token — the name is the legacy one, not the semantics.
     attr_accessor :api_key
 
     # Base URL of the vroxy deployment serving `/widget.js`.
@@ -144,7 +148,7 @@ module Vroxy
     end
 
     def initialize
-      @api_key       = ENV["VROXY_API_KEY"]
+      @api_key       = ENV["VROXY_PUBLIC_KEY"].presence || ENV["VROXY_API_KEY"]
       @endpoint      = ENV.fetch("VROXY_ENDPOINT", "https://vroxy.ai")
       @ingest_endpoint = ENV["VROXY_INGEST_ENDPOINT"]
       @auto_inject   = true

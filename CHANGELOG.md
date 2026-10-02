@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.3
+
+- **`VROXY_PUBLIC_KEY` is now the preferred name** for the tenant public
+  key — `VROXY_API_KEY` still works as a fallback, but it was always the
+  public key, never the secret API token, and the name kept inviting
+  people to paste the secret. Read in that order.
+
 ## 0.11.2
 
 - **Invalid UTF-8 in a reported error no longer breaks the report.** The
