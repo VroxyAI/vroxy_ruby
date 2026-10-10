@@ -5,7 +5,11 @@
 # runtime dep) pulls in transitively.  Requiring them explicitly
 # lets the gem's isolated test suite run without booting Rails.
 require "active_support/concern"
-require "active_support/isolated_execution_state"
+begin
+  require "active_support/isolated_execution_state"
+rescue LoadError
+  nil
+end
 require "active_support/notifications"
 
 module Vroxy

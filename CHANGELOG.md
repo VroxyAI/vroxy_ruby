@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.4
+
+- **Rails 6.1 hosts can install the gem.** The railties/actionpack floor
+  drops from 7.1 to 6.1; nothing in the widget, identify or middleware
+  path needed 7.x. On 6.1 there is no `Rails.error`, so error reporting
+  only happens where the host calls `Vroxy.report_error` itself.
+  `active_support/isolated_execution_state` (7.0+) is required only when
+  it exists. The suite passes on 6.1.7 / Ruby 3.2.1 as well as 8.1.
+
 ## 0.11.3
 
 - **`VROXY_PUBLIC_KEY` is now the preferred name** for the tenant public
