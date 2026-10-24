@@ -412,7 +412,7 @@ updates the body without duplicating rows.
 | `auto_inject`   | `true`                        | Middleware appends the snippet before `</body>` on `text/html` responses. |
 | `identify`      | *(auto-detect)*               | `->(controller) { {...} }`. Return `nil` to stay anonymous.             |
 | `exclude_paths` | `[]`                          | Strings or Regexps matched against the request path; skipped by middleware. |
-| `csp_nonce`     | `nil`                         | `->(controller) { controller.content_security_policy_nonce }` for strict CSP. Applied to every emitted tag, loader included. |
+| `csp_nonce`     | `nil`                         | `->(controller) { controller.request.content_security_policy_nonce }` for strict CSP. Applied to every emitted tag, loader included. |
 | `admin_roles`   | `%w[admin owner]`             | Roles that load the inspector and sign as `level: "admin"`. Strings or symbols. |
 | `identity_secret` | `ENV["VROXY_IDENTITY_SECRET"]` | Workspace identity-verification secret; signs the identify payload's access level so gated bot tools unlock. |
 | `report_errors` | `nil` (auto: production + api_key) | Ship unhandled exceptions to the workspace Errors page. |

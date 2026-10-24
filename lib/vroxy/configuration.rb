@@ -48,7 +48,7 @@ module Vroxy
     # `current_user` sniffing when set.
     attr_accessor :identify
 
-    # Optional CSP nonce lookup.  `->(controller) { controller.content_security_policy_nonce }`
+    # Optional CSP nonce lookup.  `->(controller) { controller.request.content_security_policy_nonce }`
     # if the app runs a strict CSP; otherwise leave nil and inline
     # `<script>` tags render without a nonce attribute.
     attr_accessor :csp_nonce

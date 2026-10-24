@@ -59,7 +59,7 @@ Vroxy.configure do |config|
   # If the app runs a strict Content-Security-Policy that forbids
   # inline scripts, wire up the request nonce so the identify
   # <script> can carry it.
-  # config.csp_nonce = ->(controller) { controller.content_security_policy_nonce }
+  # config.csp_nonce = ->(controller) { controller.request.content_security_policy_nonce }
 
   # Roles that trigger the admin UI-feedback inspector — a
   # floating 💡 launcher (bottom-left) that lets an admin pick a
