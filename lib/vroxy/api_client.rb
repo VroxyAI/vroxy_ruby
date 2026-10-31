@@ -36,6 +36,16 @@ module Vroxy
       request(:post, "/api/v1/docs/#{id}/publish")
     end
 
+    def list_share_posts(status: nil)
+      path = "/api/v1/social"
+      path = "#{path}?status=#{URI.encode_www_form_component(status)}" if status
+      request(:get, path)
+    end
+
+    def create_share_post(attrs)
+      request(:post, "/api/v1/social", { "post" => attrs })
+    end
+
     private
 
     def request(method, path, body = nil)

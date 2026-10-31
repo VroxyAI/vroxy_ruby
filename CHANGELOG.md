@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.5
+
+- **`ApiClient` can push ready-to-post social content.** `create_share_post`
+  (POST `/api/v1/social`) and `list_share_posts` (GET, optional
+  `status:`) let a server-side automation draft a caption + media into
+  the workspace's share queue — the same idempotent `source_ref` path as
+  the raw REST API, so a nightly job can re-run and still produce one
+  row. A person still pushes it out; the API only drafts.
+
 ## 0.11.4
 
 - **Rails 6.1 hosts can install the gem.** The railties/actionpack floor
