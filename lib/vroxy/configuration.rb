@@ -85,6 +85,13 @@ module Vroxy
     # stay ignored.
     attr_accessor :error_ignore
 
+    # Free-form label stamped onto every reported exception, so one
+    # workspace can carry several products / environments without
+    # confusing them — "CBC production", "CBGL stage", etc.  Sent as
+    # the error's `tag` and used to keep those groups apart.  Reads
+    # ENV VROXY_ERROR_TAG.  Blank means no tag (backward compatible).
+    attr_accessor :error_tag
+
     def ingest_endpoint
       return @ingest_endpoint if @ingest_endpoint.to_s.strip != ""
       endpoint
@@ -159,6 +166,7 @@ module Vroxy
       @secret_token  = ENV["VROXY_SECRET_TOKEN"]
       @identity_secret = ENV["VROXY_IDENTITY_SECRET"]
       @report_errors = nil
+      @error_tag     = ENV["VROXY_ERROR_TAG"]
       @error_ignore  = %w[
         ActiveRecord::RecordNotFound
         ActionController::RoutingError

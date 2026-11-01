@@ -55,9 +55,14 @@ module Vroxy
         message: utf8(exception.message)[0, MAX_MESSAGE_CHARS],
         backtrace: Array(exception.backtrace).first(MAX_BACKTRACE_LINES).map { |line| utf8(line) },
         environment: detect_environment,
+        tag: config_error_tag,
         occurred_at: Time.now.utc.iso8601,
         context: normalize_context(context).merge("handled" => handled)
-      }
+      }.compact
+    end
+
+    def config_error_tag
+      Vroxy.configuration.error_tag.to_s.strip.presence
     end
 
     def ignored?(exception, config)

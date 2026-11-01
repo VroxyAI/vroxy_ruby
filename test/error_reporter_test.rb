@@ -38,6 +38,21 @@ class ErrorReporterTest < Minitest::Test
     assert payload[:backtrace].any? { |l| l.include?("error_reporter_test") }
     assert_equal "42", payload[:context]["user_id"]
     assert_equal true, payload[:context]["handled"]
+    refute payload.key?(:tag), "no tag by default"
+  end
+
+  def test_error_tag_stamps_a_label_onto_the_payload
+    Vroxy.configure { |c| c.error_tag = "CBC production" }
+    assert Vroxy.report_error(boom)
+
+    assert_equal "CBC production", @captured.first[:tag]
+  end
+
+  def test_blank_error_tag_is_omitted
+    Vroxy.configure { |c| c.error_tag = "   " }
+    assert Vroxy.report_error(boom)
+
+    refute @captured.first.key?(:tag)
   end
 
   def test_disabled_without_api_key

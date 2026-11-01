@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.6
+
+- **`error_tag` labels every reported exception.** Set
+  `Vroxy.configuration.error_tag = "CBC production"` (or
+  `VROXY_ERROR_TAG`) and each error report carries that `tag` — the way
+  one workspace keeps several products / environments apart ("CBGL
+  stage") instead of lumping them together. Blank means no tag, so
+  existing installs are unchanged.
+
 ## 0.11.5
 
 - **`ApiClient` can push ready-to-post social content.** `create_share_post`
