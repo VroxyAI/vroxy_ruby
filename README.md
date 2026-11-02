@@ -402,6 +402,28 @@ bin/rails vroxy:sync_docs
 Docs are upserted by a `seeded:gem:<slug>` notes marker so re-syncing
 updates the body without duplicating rows.
 
+## Content-Security-Policy
+
+The widget opens a **websocket** to `wss://<endpoint>/cable` for live
+streaming. If you run a strict Content-Security-Policy, its
+`connect-src` must allow that host or the chat never connects and the
+visitor's widget sits on "Reconnecting…" with no live replies.
+
+```ruby
+# config/initializers/content_security_policy.rb
+Rails.application.configure do
+  config.content_security_policy do |policy|
+    # ...
+    policy.connect_src :self, :https, "wss://vroxy.ai"   # ← the live websocket
+  end
+end
+```
+
+Use your own `endpoint` host instead of `vroxy.ai` if you run a
+different deployment. If you set `csp_nonce`, vroxy warns at boot when
+it can't see that the websocket is allowed — the warning is the only
+signal, so add the line rather than suppressing it.
+
 ## Configuration reference
 
 | Key             | Default                       | Purpose                                                                 |

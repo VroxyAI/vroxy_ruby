@@ -13,6 +13,7 @@ require "vroxy/safe_query"
 require "vroxy/tools"
 require "vroxy/docs"
 require "vroxy/api_client"
+require "vroxy/csp_boot_check"
 
 # Railtie is optional — loading it only when Rails is present
 # lets `require "vroxy"` succeed in a plain Rack / Sinatra app

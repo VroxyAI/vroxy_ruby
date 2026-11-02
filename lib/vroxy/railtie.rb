@@ -59,6 +59,12 @@ module Vroxy
         env:    Rails.env,
         logger: Rails.logger
       )
+
+      Vroxy::CspBootCheck.run(
+        config: Vroxy.configuration,
+        env:    Rails.env,
+        logger: Rails.logger
+      )
     end
   end
 end

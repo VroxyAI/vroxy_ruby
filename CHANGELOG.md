@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.7
+
+- **Warn at boot when a strict CSP will break the chat.** Setting
+  `csp_nonce` marks a strict Content-Security-Policy, and the widget's
+  live websocket (`wss://<endpoint>/cable`) has to be in `connect-src`
+  or the visitor's widget sits on "Reconnecting…". A new `CspBootCheck`
+  (in the `after_initialize` hook, alongside the `safe_query` check)
+  logs that warning once in production, and the README gains a
+  **Content-Security-Policy** section with the exact `connect-src`
+  line to add.
+
 ## 0.11.6
 
 - **`error_tag` labels every reported exception.** Set
